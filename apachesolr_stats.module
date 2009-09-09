@@ -76,9 +76,9 @@ function apachesolr_stats_apachesolr_modify_query(&$query, &$params, $caller) {
 }
 
 /**
- * Implementation of apachesolr_stats_apachesolr_process_results().
+ * Implementation of hook_exit().
  */
-function apachesolr_stats_apachesolr_process_results(&$results) {
+function apachesolr_stats_exit() {
   if (!variable_get('apachesolr_stats_enabled', 0)) {
     return;
   }
