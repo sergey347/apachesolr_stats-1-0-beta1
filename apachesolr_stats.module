@@ -94,7 +94,7 @@ function apachesolr_stats_apachesolr_process_results(&$results) {
     (%d, %d, '%s', %d, %d, %d, %d, %d, '%s', '%s','%s','%s','%s')",
     time(),
     $user->uid,
-    $user->sid,
+    session_id(),
     $response->response->numFound,
     (int) get_object_vars($response->spellcheck->suggestions),
     $response->debug->timing->time,
