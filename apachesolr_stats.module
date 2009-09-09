@@ -253,7 +253,7 @@ function apachesolr_stats_report() {
   $s[t('Unique users')] = sizeof($users);
   $s[t('Average queries per user')] = sprintf("%.1f", $total_queries / sizeof($users));
   $s[t('Average queries per session')] = sprintf("%.1f", $total_queries / sizeof($sessions));
-  $s[t('Solr service response time per query')] = sprintf("%s: %.3f sec / %s: %.3f sec / %s: %.3f sec", t('Average'), $time['total'] / $total_queries / 1000, t('Minimum'), $time['max'] / 1000, t('Maximum'), $time['min'] / 1000);
+  $s[t('Solr service response time per query')] = sprintf("%s: %.3f sec / %s: %.3f sec / %s: %.3f sec", t('Average'), $time['total'] / $total_queries / 1000, t('Maximum'), $time['max'] / 1000, t('Minimum'), $time['min'] / 1000);
   #$s[t('Average time per query: prepare')] = sprintf("%.3f sec", $time['prepare'] / $total_queries / 1000);
   #$s[t('Average time per query: process')] = sprintf("%.3f sec", $time['process'] / $total_queries / 1000);
   
