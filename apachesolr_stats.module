@@ -81,6 +81,9 @@ function apachesolr_stats_exit() {
   }
   
   global $user;
+  if (! apachesolr_has_searched()) {
+    return;
+  }
   $response = apachesolr_static_response_cache();
   $query = apachesolr_current_query();
   $url_queryvalues = $query->get_url_queryvalues();
