@@ -79,6 +79,10 @@ function apachesolr_stats_exit() {
   if (!variable_get('apachesolr_stats_enabled', 0)) {
     return;
   }
+  // Apparently there can be cases where some modules aren't loaded.
+  if (! function_exists('apachesolr_has_searched')) {
+    return;
+  }
   
   global $user;
   if (! apachesolr_has_searched()) {
