@@ -251,9 +251,7 @@ function apachesolr_stats_report_gadget() {
       };
       function response(obj) {
         //obj.text contains the text of the page that was requested
-        var str = obj.text;
-        var html =  str.substr(0,400);
-        document.getElementById('content_div').innerHTML = html;
+        document.getElementById('content_div').innerHTML = obj.text;
         setTimeout("gadgets.window.adjustHeight()", 1000);
       };
 
@@ -296,10 +294,9 @@ function apachesolr_stats_report_gadget_element($requested_granularity, $request
   $report_elements = apachesolr_stats_generate_report_elements($granularities[$requested_granularity]);
   foreach ($report_elements as $id => $report_element) {
     if ($id == $requested_element) {
-      echo "<strong>" . $report_element['name'] . "</strong>\n";
+      echo $report_element['name'] . "<br />\n";
       $value = $report_element['value'];
       $value = str_replace('&', '&amp;', $value);
-      $value = str_replace("'", '"', $value);
       echo "<div>{$value}</div>\n";
       exit;
     }
