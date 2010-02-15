@@ -344,7 +344,7 @@ function apachesolr_stats_report($picked_granularity = "hour") {
   }
   $output .= "</div><hr>";
 
-  if (is_array($report_elements)) {
+  if ($report_elements) {
     // Report description
     $output .= t('This is an overview of Apache Solr usage and performance since @startdate.', array('@startdate' => format_date($earliest_timestamp)));
 
@@ -732,7 +732,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $earliest_timestamp = $start_timeslot * $granularity['timespan'];
 
   if (sizeof($sessions) == 0 || sizeof($users) == 0 || $total_queries == 0) {
-    return t('There are no logged queries yet.');
+    return array();
   }
 
   $report_elements['queries'] = array('name' => t('Queries'), 'value' => $total_queries);
