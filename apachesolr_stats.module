@@ -159,7 +159,7 @@ function apachesolr_stats_exit() {
     isset($_GET['page']) ? $_GET['page'] : '',
     $query->get_query_basic(),
     $url_queryvalues['filters'],
-    $url_queryvalues['sort'],
+    $url_queryvalues['solrsort'],
     serialize($response->responseHeader->params)
   );
 
@@ -346,24 +346,24 @@ function apachesolr_stats_report($picked_granularity = "hour") {
 
   if ($report_elements) {
     // Report description
-    $output .= t('This is an overview of Apache Solr usage and performance since @startdate.', array('@startdate' => format_date($earliest_timestamp)));
+    $output .= t('This is an overview of Apache Solr usage and performance.');
 
     // Add Google Gadgets embedding link
     $key = variable_get("apachesolr_stats_gadget_key", "");
     if ($key) {
       $gadget_url = url("apachesolr_stats/gadget/{$key}", array('absolute' => TRUE));
       $gadget_embed_html = '<a href="http://fusion.google.com/add?source=atgs&moduleurl=' . urlencode($gadget_url) . '"><img src="http://buttons.googlesyndication.com/fusion/add.gif" border="0" alt="' . t('Add to Google') . '"></a>';
-      $output .= "<div style='text-align:right'>" . l(t('Embed as Google Gadget'), "http://www.google.com/ig/adde?moduleurl=" . urlencode($gadget_url)) . " {$gadget_embed_html}</p>";
+      $output .= "<div style='text-align:right'>" . l(t('Embed as Google Gadget'), "http://www.google.com/ig/adde?moduleurl=" . urlencode($gadget_url)) . " {$gadget_embed_html}</div>";
     }
 
     // Render report elements
     foreach ($report_elements as $id => $data) {
       // Table data
       $rows[] = array(
-              "data" => array(
-                      array('data' => $data['name'], 'header' => true, 'style' => 'width:33%'),
-                      array('data' => $data['value']),
-              )
+        "data" => array(
+          array('data' => $data['name'], 'header' => true, 'style' => 'width:33%'),
+          array('data' => $data['value']),
+        )
       );
     }
     $output .= theme('table', array(), $rows);
@@ -527,9 +527,10 @@ function apachesolr_stats_determine_field_from_query($facets, $word) {
 function apachesolr_stats_facet_usage_table($facets) {
   // Report usage in table
   $header = array(
-          array('data' => 'Facet ID', 'Xfield' => 'id', 'sort' => 'asc'),
-          array('data' => 'Facet info', 'Xfield' => 'info', 'sort' => ''),
-          array('data' => 'Queries containing this facet', 'Xfield' => 'queries', 'sort' => ''),
+          array('data' => t('Facet ID'), 'Xfield' => 'id', 'sort' => 'asc'),
+          array('data' => t('Facet info'), 'Xfield' => 'info', 'sort' => ''),
+          array('data' => t('Queries containing this facet'), 'Xfield' => 'queries', 'sort' => ''),
+          array('data' => t('% of queries containing this facet'), 'Xfield' => 'queries', 'sort' => ''),
           #array('data' => 'Clickthrus from queries containing this facet', 'Xfield' => 'ct', 'sort' => ''),
           #array('data' => 'Clickthru rate for facet', 'Xfield' => 'ctp', 'sort' => ''),
   );
@@ -537,12 +538,13 @@ function apachesolr_stats_facet_usage_table($facets) {
     $rows[$fieldname][] = $fieldname;
     $rows[$fieldname][] = $facet['info'];
     $rows[$fieldname][] = $facet['usage'];
+    $rows[$fieldname][] = sprintf("%2.1f%%", $facet['usage']/$facets['any']['usage']*100);
     #$rows[$fieldname][] = $facet['clickthru'];
     #if ($facet['usage']>0) {
     #  $rows[$fieldname][] = sprintf("%2.1f%%", ($facet['clickthru'] / $facet['usage'])*100);
     #}
   }
-  $output = theme('table', $header, $rows);
+  $output = theme('table', $header, $rows, array('style' => 'font-size:80%'));
   return $output;
 }
 
@@ -670,6 +672,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
     }
     $users[$record->uid]++;
     $sessions[$record->sid]++;
+    // Tally suggestions
     if ($record->showed_suggestions) {
       $suggestions++;
     }
@@ -697,12 +700,12 @@ function apachesolr_stats_generate_report_elements($granularity) {
             $facet_processed_flag[$fieldname] = true;
           }
         }
+      }
 
-        if (trim($record->keywords) != "") {
-          if ($facet_processed_flag['kw'] != true) {
-            $facets['kw']['usage']++;
-            $facet_processed_flag['kw'] = true;
-          }
+      if (trim($record->keywords) != "") {
+        if ($facet_processed_flag['kw'] != true) {
+          $facets['kw']['usage']++;
+          $facet_processed_flag['kw'] = true;
         }
       }
       // Count each unique query
@@ -735,17 +738,24 @@ function apachesolr_stats_generate_report_elements($granularity) {
     return array();
   }
 
-  $report_elements['queries'] = array('name' => t('Queries'), 'value' => $total_queries);
+  $report_elements['span'] = array(
+    'name' => t('Report span'),
+    'value' => t('@startdate to @enddate', array(
+      '@startdate' => format_date($earliest_timestamp),
+      '@enddate' => format_date(time())
+    ))
+  );
+  $report_elements['queries'] = array('name' => t('Requests to Solr'), 'value' => $total_queries);
   $report_elements['spellchecker'] = array('name' => t('Spellchecker suggestions'), 'value' => $suggestions);
   $report_elements['unique_sessions'] = array('name' => t('Unique sessions'), 'value' => sizeof($sessions));
   $report_elements['unique_users'] = array('name' => t('Unique users'), 'value' => sizeof($users));
-  $report_elements['avg_queries_user'] = array('name' => t('Average queries per user'), 'value' => sprintf("%.1f", $total_queries / sizeof($users)));
-  $report_elements['avg_queries_session'] = array('name' => t('Average queries per session'), 'value' => sprintf("%.1f", $total_queries / sizeof($sessions)));
-  $report_elements['solr_response_time'] = array('name' => t('Solr service response time per query'), 'value' => sprintf("%s: %.3f sec / %s: %.3f sec / %s: %.3f sec", t('Average'), $time['total'] / $total_queries / 1000, t('Maximum'), $time['max'] / 1000, t('Minimum'), $time['min'] / 1000));
+  $report_elements['avg_queries_user'] = array('name' => t('Average requests per user'), 'value' => sprintf("%.1f", $total_queries / sizeof($users)));
+  $report_elements['avg_queries_session'] = array('name' => t('Average requests per session'), 'value' => sprintf("%.1f", $total_queries / sizeof($sessions)));
+  $report_elements['solr_response_time'] = array('name' => t('Solr service response time per query'), 'value' => sprintf("%s: %.2f ms / %s: %.2f ms / %s: %.2f ms", t('Minimum'), $time['min'], t('Average'), $time['total'] / $total_queries, t('Maximum'), $time['max']));
   
   // Chart for queries per timeslot
   $chart = apachesolr_stats_chart($granularity, $data_per_granularity['queries'], $start_timeslot, $last_timeslot, $total_queries, $total_queries / ($last_timeslot-$start_timeslot+1));
-  $report_elements['total_queries_per'] = array('name' => t('Total queries, by @granularity', array('@granularity' => $granularity['name'])), 'value' => $chart);
+  $report_elements['total_queries_per'] = array('name' => t('Total requests, by @granularity', array('@granularity' => $granularity['name'])), 'value' => $chart);
 
   // Chart for average time per timeslot
   $data = array();
@@ -760,9 +770,6 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $chart = apachesolr_stats_chart($granularity, $data_per_granularity['users_per_slot'], $start_timeslot, $last_timeslot, $total_queries, sizeof($users) / ($last_timeslot-$start_timeslot+1));
   $report_elements['total_users_per'] = array('name' => t('Total unique users executing queries, by @granularity', array('@granularity' => $granularity['name'])), 'value' => $chart);
 
-  // Chart for field usage
-  $report_elements['field_usage'] = array('name' => t('Field usage', array('@granularity' => $granularity['name'])), 'value' => apachesolr_stats_facet_usage_graph($facets));
-
   // Chart for sort usage
   $leyends = array();
   foreach ($sort_usage as $key => $value) {
@@ -771,12 +778,12 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $chl = implode('|', $leyends);
   $chd = implode(',', $sort_usage);
   $chart = "<img src='http://chart.apis.google.com/chart?cht=p3&chd=t:{$chd}&chs=350x100&chl={$chl}' />";
-  $report_elements['sort_usage'] = array('name' => t('Sort usage', array('@granularity' => $granularity['name'])), 'value' => $chart);
+  $report_elements['sort_usage'] = array('name' => t('Sort usage'), 'value' => $chart);
 
-  // Facet usage table
-  $report_elements['facet_usage_table'] = array(
-          'name' => t('Facet usage detail'),
-          'value' => apachesolr_stats_facet_usage_table($facets)
+  // Chart for field usage
+  $report_elements['field_usage'] = array(
+    'name' => t('Facet usage'),
+    'value' => apachesolr_stats_facet_usage_graph($facets) . apachesolr_stats_facet_usage_table($facets)
   );
 
   return $report_elements;
