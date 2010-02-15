@@ -670,7 +670,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
     }
     $users[$record->uid]++;
     $sessions[$record->sid]++;
-    if ($record->suggestions) {
+    if ($record->showed_suggestions) {
       $suggestions++;
     }
     $total_requests++;
