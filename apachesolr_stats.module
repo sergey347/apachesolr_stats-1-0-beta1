@@ -662,6 +662,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $time['max'] = -1;
   $time['min'] = 9999.999;
   $report_elements = array();
+  $keywords = array();
 
   // Scan the logfile and build statistics arrays
   $result = db_query("SELECT * FROM {apachesolr_stats} WHERE timestamp > %d ORDER BY timestamp DESC", time()- $granularity['time_before']);
@@ -706,8 +707,19 @@ function apachesolr_stats_generate_report_elements($granularity) {
         if ($facet_processed_flag['kw'] != true) {
           $facets['kw']['usage']++;
           $facet_processed_flag['kw'] = true;
+
+          // Keep track of individual keywords used
+          $keys_filtered = drupal_strtolower(trim($record->keywords));
+          $keywords[$keys_filtered]++;
+
+          if ($record->numfound == 0) {
+            $keywords_noresults[$keys_filtered]++;
+          }
         }
+      } else {
+        $no_keywords++;
       }
+
       // Count each unique query
       $facets["any"]['usage']++;
 
@@ -780,6 +792,12 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $chart = "<img src='http://chart.apis.google.com/chart?cht=p3&chd=t:{$chd}&chs=350x100&chl={$chl}' />";
   $report_elements['sort_usage'] = array('name' => t('Sort usage'), 'value' => $chart);
 
+  // Most-used keywords
+  $report_elements['keywords'] = array('name' => t('Top search phrases'), 'value' => apachesolr_stats_report_frequent_keywords($keywords));
+
+  // Most-used keywords with no results
+  $report_elements['keywords_noresults'] = array('name' => t('Top search phrases with no results'), 'value' => apachesolr_stats_report_frequent_keywords($keywords_noresults));
+
   // Chart for field usage
   $report_elements['field_usage'] = array(
     'name' => t('Facet usage'),
@@ -787,4 +805,20 @@ function apachesolr_stats_generate_report_elements($granularity) {
   );
 
   return $report_elements;
+}
+
+/**
+ * Recieves an array of keyword => count and reports the top-used terms.
+ * @param $keywords  
+ *   array of keyword => count pairs
+ */
+function apachesolr_stats_report_frequent_keywords($keywords, $number = 25) {
+  arsort($keywords);
+  // Final elements are the most frequent, get $number elements off the array
+  $final = array_slice($keywords, 0, $number);
+  $items = array();
+  foreach ($final as $word => $count) {
+    $items[] = l($word, "search/apachesolr_search/$word");
+  }
+  return implode(", ", $items);
 }
