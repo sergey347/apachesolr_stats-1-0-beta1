@@ -872,6 +872,9 @@ function apachesolr_stats_generate_report_elements($granularity) {
  *   array of keyword => count pairs
  */
 function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresults, $class = "", $number = 25) {
+  if (empty($keywords)) {
+    return '';
+  }
   arsort($keywords);
   // Final elements are the most frequent, get $number elements off the array
   $slice = array_slice($keywords, 0, $number);
