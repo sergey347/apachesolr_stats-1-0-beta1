@@ -185,7 +185,7 @@ function apachesolr_stats_exit() {
 /**
  * Callback function that outputs an XML description for a Google Gadget
  * and terminates PHP execution.
- * 
+ *
  * @see apachesolr_stats_menu()
  */
 function apachesolr_stats_report_gadget() {
@@ -216,6 +216,7 @@ function apachesolr_stats_report_gadget() {
   // Send correct header for XML
   header("Content-Type: text/xml");
   // Output the gadget XML description
+  $site_base_url = url('<front>', array('absolute' => true));
   echo <<<HEREDOC
 <?xml version="1.0" encoding="UTF-8" ?>
 <Module>
@@ -250,7 +251,7 @@ function apachesolr_stats_report_gadget() {
         var rand = Math.floor(Math.random()*9999)
 
         params[gadgets.io.RequestParameters.CONTENT_TYPE] = gadgets.io.ContentType.TEXT;
-        var url = "http://khub.itesm.mx/apachesolr_stats/element/" + granularity + "/" + element + "/" + key + "?" + rand;
+        var url = "$site_base_url/apachesolr_stats/element/" + granularity + "/" + element + "/" + key + "?" + rand;
         gadgets.io.makeRequest(url, response, params);
       };
       function response(obj) {
@@ -868,7 +869,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
 
 /**
  * Recieves an array of keyword => count and reports the top-used terms.
- * @param $keywords  
+ * @param $keywords
  *   array of keyword => count pairs
  */
 function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresults, $class = "", $number = 25) {
