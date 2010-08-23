@@ -80,6 +80,12 @@ function apachesolr_stats_admin() {
     '#options' => $period,
     '#description' => t('Older query log entries will be automatically discarded. (Requires a correctly configured <a href="@cron">cron maintenance task</a>.)', array('@cron' => url('admin/reports/status')))
   );
+  $form['access']['apachesolr_stats_ignore_ip_list'] = array(
+    '#type' => 'textarea',
+    '#title' => t('IP addresses that will not be logged'),
+    '#default_value'   => variable_get('apachesolr_stats_ignore_ip_list', ''),
+    '#description' => t('Enter IP addresses (e.g.: 192.168.1.2), one per line. You can match entire subnets using a partial IP address ending with a period (e.g.: 192.168.)')
+  );
   $form['gadget'] = array(
     '#type' => 'fieldset',
     '#title' => t('Google Gadget settings'),
@@ -134,6 +140,14 @@ function apachesolr_stats_exit() {
   // Apparently there can be cases where some modules aren't loaded.
   if (! function_exists('apachesolr_has_searched')) {
     return;
+  }
+  // Ignore certain IPs
+  $ips_to_ignore = preg_split('/[\s]+/', variable_get('apachesolr_stats_ignore_ip_list', ''));
+  $request_ip_address = ip_address();
+  foreach ($ips_to_ignore as $ip) {
+    if (strpos($request_ip_address, $ip) === 0) {
+      return;
+    }
   }
 
   global $user;
