@@ -142,11 +142,14 @@ function apachesolr_stats_exit() {
     return;
   }
   // Ignore certain IPs
-  $ips_to_ignore = preg_split('/[\s]+/', variable_get('apachesolr_stats_ignore_ip_list', ''));
-  $request_ip_address = ip_address();
-  foreach ($ips_to_ignore as $ip) {
-    if (strpos($request_ip_address, $ip) === 0) {
-      return;
+  $ignore_list = variable_get('apachesolr_stats_ignore_ip_list', '');
+  if ($ignore_list) {
+    $ips_to_ignore = preg_split('/[\s]+/', $ignore_list);
+    $request_ip_address = ip_address();
+    foreach ($ips_to_ignore as $ip) {
+      if (strpos($request_ip_address, $ip) === 0) {
+        return;
+      }
     }
   }
 
