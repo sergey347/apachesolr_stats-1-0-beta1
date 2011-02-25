@@ -1,4 +1,3 @@
-; $Id$
 name = Apache Solr statistics
 description = Keeps and reports statistics about Apache Solr usage and performance.
 dependencies[] = apachesolr

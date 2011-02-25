@@ -1,4 +1,3 @@
-/* $Id$ */
 
 Apache Solr Statistics module for Drupal.
 
