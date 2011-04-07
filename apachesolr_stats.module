@@ -159,6 +159,10 @@ function apachesolr_stats_exit() {
   $response = apachesolr_static_response_cache();
   $query = apachesolr_current_query();
   $url_queryvalues = $query->get_url_queryvalues();
+  $num_suggestions = 0;
+  if ($response->spellcheck->suggestions != NULL) {
+    $num_suggestions = (int) get_object_vars($response->spellcheck->suggestions);
+  }
 
   db_query("INSERT INTO {apachesolr_stats}
     (timestamp, uid, sid, numfound, showed_suggestions, total_time, prepare_time, process_time, page, keywords, filters, sort, params)
