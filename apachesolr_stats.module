@@ -85,6 +85,13 @@ function apachesolr_stats_admin() {
     '#default_value'   => variable_get('apachesolr_stats_ignore_ip_list', ''),
     '#description' => t('Enter IP addresses (e.g.: 192.168.1.2), one per line. You can match entire subnets using a partial IP address ending with a period (e.g.: 192.168.)')
   );
+  $form['access']['apachesolr_stats_ignore_role_list'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('User roles that will not be logged'),
+    '#options' => user_roles() ,
+    '#default_value' => variable_get('apachesolr_stats_ignore_role_list', array()),
+    '#description' => t('Check all roles which should not be logged'),
+  );
   $form['gadget'] = array(
     '#type' => 'fieldset',
     '#title' => t('Google Gadget settings'),
@@ -153,6 +160,13 @@ function apachesolr_stats_exit() {
   }
 
   global $user;
+  
+  $roles_ignore_list = variable_get('apachesolr_stats_ignore_role_list', array());
+  $test = array_intersect(array_keys($user->roles),array_values($roles_ignore_list));
+  if (count($test) > 0) {
+    return;
+  }
+  
   if (! apachesolr_has_searched()) {
     return;
   }
