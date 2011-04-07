@@ -938,7 +938,7 @@ function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresult
 
   $items = array();
   foreach ($weighted_slice as $word => $data) {
-    if ($keywords_noresults[$word]) {
+    if (isset($keywords_noresults[$word])) {
       $class = "error";
     }
     $font_size_pct = 80 + ($data['weight'])*12;
@@ -953,4 +953,72 @@ function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresult
     ) . " (" . $data["count"] . ")";
   }
   return implode(", ", $items);
+}
+
+/**
+ * Return a listing of keywords for the Popular Searches block.
+ */
+function apachesolr_stats_block_frequent_keywords($limit = 10) {
+  $cid = "apachesolr_stats_block_frequent_keywords:$limit";
+  $cached = cache_get($cid, 'cache_block');
+  if ($cached->data && $cached->expire > time()) {
+    return $cached->data;
+  }
+  $keywords = array();
+  // Return keywords only last week's logged queries.
+  $timestamp = time() - 3600*24*7;
+  $result = db_query_range("SELECT keywords FROM {apachesolr_stats} WHERE
+      numfound > 0 AND timestamp > %d
+      ORDER BY timestamp DESC", $timestamp, 0, 5000);
+  while ($record = db_fetch_object($result)) {
+    if (trim($record->keywords) != "") {
+      // Keep track of individual keywords used
+      $keys_filtered = drupal_strtolower(trim($record->keywords));
+      $keywords[$keys_filtered]++;
+    }
+  }
+  // Sort by most frequent first.
+  arsort($keywords);
+  // Get first $limit items.
+  $keywords = array_slice($keywords, 0, $limit);
+  $links = array();
+  foreach ($keywords as $key => $frequency) {
+    $links[] = l($key, 'search/apachesolr_search/' . $key);
+  }
+  // Cache information for 10 minutes.
+  $expire = time() + 600;
+  cache_set($cid, $links, 'cache_block', $expire);
+  return $links;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function apachesolr_stats_block($op = 'list', $delta = 0) {
+  switch ($op) {
+    case 'list':
+      // Default block settings.
+      $blocks = array(
+        0 => array(
+          'info' => t('Apache Solr Statistics: popular searches'),
+          // Start out disabled
+          'status' => 0,
+          'region' => 'right',
+          // Should be cached equally across paths and roles.
+          'cache' => BLOCK_CACHE_GLOBAL,
+        )
+      );
+      return $blocks;
+  
+    case 'view':
+      $links = apachesolr_stats_block_frequent_keywords();
+      if ($links) {
+        // Return a block array.
+        $block = array(
+          'subject' => t('Popular searches'),
+          'content' => theme('item_list', $links),
+        );
+        return $block;
+      }
+  }
 }
