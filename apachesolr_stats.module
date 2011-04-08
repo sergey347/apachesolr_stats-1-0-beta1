@@ -192,8 +192,8 @@ function apachesolr_stats_exit() {
     $response->debug->timing->process->time,
     isset($_GET['page']) ? $_GET['page'] : '',
     $query->get_query_basic(),
-    $url_queryvalues['filters'],
-    $url_queryvalues['solrsort'],
+    (isset($url_queryvalues['filters']) ? $url_queryvalues['filters'] : ''),
+    (isset($url_queryvalues['solrsort']) ? $url_queryvalues['solrsort'] : ''),
     serialize($response->responseHeader->params)
   );
 
@@ -961,7 +961,7 @@ function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresult
 function apachesolr_stats_block_frequent_keywords($limit = 10) {
   $cid = "apachesolr_stats_block_frequent_keywords:$limit";
   $cached = cache_get($cid, 'cache_block');
-  if ($cached->data && $cached->expire > time()) {
+  if ($cached && $cached->data && $cached->expire > time()) {
     return $cached->data;
   }
   $keywords = array();
@@ -974,7 +974,12 @@ function apachesolr_stats_block_frequent_keywords($limit = 10) {
     if (trim($record->keywords) != "") {
       // Keep track of individual keywords used
       $keys_filtered = drupal_strtolower(trim($record->keywords));
-      $keywords[$keys_filtered]++;
+      if (isset($keywords[$keys_filtered])) {
+        $keywords[$keys_filtered]++;
+      }
+      else {
+        $keywords[$keys_filtered] = 1;
+      }
     }
   }
   // Sort by most frequent first.
