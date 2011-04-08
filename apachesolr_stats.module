@@ -186,7 +186,7 @@ function apachesolr_stats_exit() {
     $user->uid,
     session_id(),
     $response->response->numFound,
-    (int) get_object_vars($response->spellcheck->suggestions),
+    $num_suggestions,
     $response->debug->timing->time,
     $response->debug->timing->prepare->time,
     $response->debug->timing->process->time,
