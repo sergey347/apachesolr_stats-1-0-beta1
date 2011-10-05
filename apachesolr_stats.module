@@ -174,7 +174,7 @@ function apachesolr_stats_exit() {
   $query = apachesolr_current_query();
   $url_queryvalues = $query->get_url_queryvalues();
   $num_suggestions = 0;
-  if ($response->spellcheck->suggestions != NULL) {
+  if (isset($response->spellcheck) && isset($response->spellcheck->suggestions) && $response->spellcheck->suggestions != NULL) {
     $num_suggestions = (int) get_object_vars($response->spellcheck->suggestions);
   }
 
@@ -353,7 +353,7 @@ function apachesolr_stats_report_gadget_element($requested_granularity, $request
  *   The page output as HTML.
  * @see apachesolr_stats_menu()
  */
-function apachesolr_stats_report($picked_granularity = "hour") {
+function apachesolr_stats_report($picked_granularity = "minute") {
   drupal_set_title(t("Apache Solr statistics report"));
   if (! variable_get('apachesolr_stats_enabled', 0)) {
     return t('Logging is disabled in the !link. Enable it to log Apache Solr queries.', array('!link' => l('module configuration page', 'admin/settings/apachesolr/stats')));
@@ -363,8 +363,8 @@ function apachesolr_stats_report($picked_granularity = "hour") {
 
   // Decide what granularity to use: minute, hour or day
   // Check if given argument exists; if not, reset to "hour"
-  if (!$granularities[$picked_granularity]) {
-    $picked_granularity = "hour";
+  if (!isset($granularities[$picked_granularity])) {
+    $picked_granularity = "minute";
   }
   $granularity = $granularities[$picked_granularity];
 
@@ -438,7 +438,7 @@ function apachesolr_stats_report($picked_granularity = "hour") {
  * @param boolean $average
  *    Boolean flag: show an average value in the chart.
  */
-function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_timeslot, $average = FALSE) {
+function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_timeslot, $total_queries, $average = FALSE) {
   // Sample: http://chart.apis.google.com/chart?cht=lc&chs=350x100&chdlp=b&chma=10,10,10,10&chd=s:[encoded chart data]
   $chart_prefix = 'http://chart.apis.google.com/chart?cht=lc&chs=350x100';
   $chart_prefix .= '&chdlp=b&chma=30,100,20,20&chd=s:';
@@ -447,17 +447,12 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
   $chd_max = 0;
   $total = 0;
   for ($t = $start_timeslot; $t<=$last_timeslot; $t++) {
-    $num = $data[$t]+0;
+    $num = isset($data[$t]) ? intval($data[$t]) : 0;
     $chd_min = ($chd_min > $num) ? $num : $chd_min;
     $chd_max = ($chd_max < $num) ? $num : $chd_max;
     $chd[] = $num;
   }
   $chd = array_reverse($chd);
-  if ($count > 0) {
-    $chd_avg = $total / $count;
-  } else {
-    $chd_avg = $num;
-  }
 
   // Generate basic image URL
   $image_url = $chart_prefix . apachesolr_stats_encodedata($chd, $chd_min, $chd_max);
@@ -609,13 +604,14 @@ function apachesolr_stats_facet_usage_graph($facets) {
   $leyends = array();
   $data = array();
   $label_cutoff = 40;
-  foreach($facets as $fieldname => $facet) {
+  $total_queries = 0;
+  foreach ($facets as $fieldname => $facet) {
     $leyend = preg_replace("/^.*ilter by /", "", $facet['info']);
     if (strlen($leyend) > $label_cutoff) {
       $leyend = substr($leyend, 0, $label_cutoff) . "...";
     }
     $leyends[] = drupal_urlencode($leyend);
-    $data[] = $facet['usage'];
+    $data[] = isset($facet['usage']) ? $facet['usage'] : 0;
   }
   $chd = apachesolr_stats_encodedata($data, 0, $facets['any']['usage']);
   // array_reverse() in next line due to apachesolr_stats_encodedata() encoding data backwards
@@ -711,6 +707,9 @@ function apachesolr_stats_get_granularities() {
 function apachesolr_stats_generate_report_elements($granularity) {
   // Initialize
   $facets = apachesolr_stats_get_facets();
+  foreach ($facets as &$facet) {
+    $facet['usage'] = 0;
+  }
   $suggestions = 0;
   $queries = 0;
   $users = array();
@@ -718,10 +717,13 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $start_timeslot = 0;
   $last_timeslot = 0;
   $first_timestamp = 0;
+  $no_keywords = 0;
+  $total_queries = 0;
   $time['max'] = -1;
   $time['min'] = 9999.999;
   $report_elements = array();
   $keywords = array();
+  $keywords_noresults = array();
 
   // Scan the logfile and build statistics arrays
   $result = db_query("SELECT * FROM {apachesolr_stats} WHERE timestamp > %d ORDER BY timestamp DESC", time()- $granularity['time_before']);
@@ -730,14 +732,14 @@ function apachesolr_stats_generate_report_elements($granularity) {
     if ($last_timeslot == 0) {
       $last_timeslot = $timeslot;
     }
-    $users[$record->uid]++;
-    $sessions[$record->sid]++;
+    @$users[$record->uid]++;
+    @$sessions[$record->sid]++;
     // Tally suggestions
     if ($record->showed_suggestions) {
       $suggestions++;
     }
-    $total_requests++;
-    $time['total'] += $record->total_time;
+    @$total_requests++;
+    @$time['total'] += $record->total_time;
     // $time['prepare'] += $record->prepare_time;
     // $time['process'] += $record->process_time;
 
@@ -752,6 +754,9 @@ function apachesolr_stats_generate_report_elements($granularity) {
       foreach($matches[0] as $word) {
         $fieldname = apachesolr_stats_determine_field_from_query($facets, $word);
         if ($fieldname != false) {
+          if (!isset($facets[$fieldname]['usage'])) {
+            $facets[$fieldname] = array('usage' => 0);
+          }
           // Count this facet field only once per query
           if ($facet_processed_flag[$fieldname] != true) {
             // Add 1 to usage of term from vocabulary
@@ -763,17 +768,17 @@ function apachesolr_stats_generate_report_elements($granularity) {
       }
 
       if (trim($record->keywords) != "") {
-        if ($facet_processed_flag['kw'] != true) {
-          $facets['kw']['usage']++;
+        if (isset($facet_processed_flag['kw']) && $facet_processed_flag['kw'] != true) {
+          @$facets['kw']['usage']++;
           $facet_processed_flag['kw'] = true;
 
           // Keep track of individual keywords used
           $keys_filtered = drupal_strtolower(trim($record->keywords));
-          $keywords[$keys_filtered]++;
+          @$keywords[$keys_filtered]++;
 
           // Count keywords with zero results; only when no filters issued.
           if ($record->numfound == 0 && !$record->filters) {
-            $keywords_noresults[$keys_filtered]++;
+            @$keywords_noresults[$keys_filtered]++;
           }
         }
       } else {
@@ -781,39 +786,40 @@ function apachesolr_stats_generate_report_elements($granularity) {
       }
 
       // Count each unique query
-      $facets["any"]['usage']++;
+      @$facets["any"]['usage']++;
 
       // Keep track of how many fields were active per query
-      $simultaneous_fields[sizeof($facet_processed_flag)]++;
+      @$simultaneous_fields[sizeof($facet_processed_flag)]++;
 
       $total_queries++;
     }
 
     // Sort usage; count only the first page of results
     if ($record->page == "") {
-      $sort_usage[($record->sort) ? $record->sort : "relevance"]++;
+      @$sort_usage[($record->sort) ? $record->sort : "relevance"]++;
     }
 
     // Group some stats into timeslots (minutes, hours) to show trends
     if (empty($user_slot[$record->uid][$timeslot])) {
-      $data_per_granularity['users_per_slot'][$timeslot]++;
+      @$data_per_granularity['users_per_slot'][$timeslot]++;
       $user_slot[$record->uid][$timeslot] = TRUE;
     }
     if (empty($session_slot[$record->sid][$timeslot])) {
-      $data_per_granularity['sessions_per_slot'][$timeslot]++;
+      @$data_per_granularity['sessions_per_slot'][$timeslot]++;
       $session_slot[$record->sid][$timeslot] = TRUE;
     }
-    $data_per_granularity['queries'][$timeslot]++;
-    $count_per_granularity[$timeslot]++;
-    $data_per_granularity['total_time'][$timeslot] += $record->total_time;
+    @$data_per_granularity['queries'][$timeslot]++;
+    @$count_per_granularity[$timeslot]++;
+    @$data_per_granularity['total_time'][$timeslot] += $record->total_time;
     $first_timestamp = $record->timestamp;
   }
-  $start_timeslot = $timeslot;
-  $earliest_timestamp = $start_timeslot * $granularity['timespan'];
 
   if (sizeof($sessions) == 0 || sizeof($users) == 0 || $total_queries == 0) {
     return array();
   }
+
+  $start_timeslot = $timeslot;
+  $earliest_timestamp = $start_timeslot * $granularity['timespan'];
 
   $report_elements['span'] = array(
     'name' => t('Report span'),
@@ -827,7 +833,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
   );
   #$report_elements['queries'] = array('name' => t('Total requests to Solr'), 'value' => $total_queries);
   // Chart for queries per timeslot
-  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['queries'], $start_timeslot, $last_timeslot, $total_queries / ($last_timeslot-$start_timeslot+1));
+  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['queries'], $start_timeslot, $last_timeslot, $total_queries, $total_queries / ($last_timeslot-$start_timeslot+1));
   $report_elements['total_queries_per'] = array(
     'name' => t('Requests'),
     'value' => t('Total: @total', array('@total' => $total_queries)) . '<br />' . $chart
@@ -843,7 +849,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
   */
 
   // Chart for sessions per timeslot
-  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['sessions_per_slot'], $start_timeslot, $last_timeslot, sizeof($sessions) / ($last_timeslot-$start_timeslot+1));
+  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['sessions_per_slot'], $start_timeslot, $last_timeslot, sizeof($sessions), sizeof($sessions) / ($last_timeslot-$start_timeslot+1));
   $report_elements['total_sessions_per'] = array(
     'name' => t('Unique sessions'),
     'value' => t('Total: @total', array('@total' => sizeof($sessions))) . '<br />' . $chart
@@ -858,7 +864,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
     $data[$timeslot] = $value / $count_per_granularity[$timeslot];
   }
   // Call with average_empty = FALSE
-  $chart = apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_timeslot, $time['total'] / $total_queries);
+  $chart = apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_timeslot, $total_queries, $time['total'] / $total_queries);
   $report_elements['query_avg_time'] = array(
     'name' => t('Average time per request (miliseconds)'),
     'value' =>
