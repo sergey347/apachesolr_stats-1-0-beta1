@@ -3,7 +3,6 @@
 /**
  * @file
  *   Keeps and reports statistics about Apache Solr usage and performance.
- *
  */
 
 /**
@@ -29,7 +28,7 @@ function apachesolr_stats_menu() {
     ),
     'apachesolr_stats/gadget' => array(
       'title' => 'Apache Solr Google Gadget',
-      'page callback' => 'apachesolr_stats_report_gadget',
+      'page callback'    => 'apachesolr_stats_report_gadget',
       'description'      => 'Provides content for Google Gadget.',
       'page arguments'   => array(),
       'access arguments' => array('access content'),
@@ -37,7 +36,7 @@ function apachesolr_stats_menu() {
     ),
     'apachesolr_stats/element/%/%/%' => array(
       'title' => 'Apache Solr Google Gadget Elements',
-      'page callback' => 'apachesolr_stats_report_gadget_element',
+      'page callback'    => 'apachesolr_stats_report_gadget_element',
       'description'      => 'Provides content for Google Gadget.',
       'page arguments'   => array(2,3,4),
       'access arguments' => array('access content'),
@@ -54,35 +53,37 @@ function apachesolr_stats_admin() {
 
   $form['tip'] = array(
     '#type' => 'markup',
-    '#value' => t('You can also visit the !reportlink.',
-    array('!reportlink' => l(t('report page'), 'admin/reports/apachesolr/stats'))),
+    '#value' => t('You can also visit the <a href="@report-url">report page</a>.',
+      array('@report-url' => url('admin/reports/apachesolr/stats'))),
   );
-  $options = array('1' => t('Enabled'), '0' => t('Disabled'));
-  $form['access'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Apache Solr query log settings')
-  );
-
-  $form['access']['apachesolr_stats_enabled'] = array(
+  
+  $form['apachesolr_stats_enabled'] = array(
     '#type' => 'radios',
-    '#title' => t('Enable access log'),
+    '#title' => t('Enable query log'),
     '#default_value' => variable_get('apachesolr_stats_enabled', 0),
-    '#options' => $options,
-    '#description' => t('Log each query to Apache Solr.')
+    '#options' => array('1' => t('Enabled'), '0' => t('Disabled')),
+    '#description' => t('Log information about all queries launched via the Apache Solr Search Integration module.')
   );
 
-  $period = drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
-  $form['access']['apachesolr_stats_flush_log_timer'] = array(
+  $periods = drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
+  $form['apachesolr_stats_flush_log_timer'] = array(
     '#type' => 'select',
     '#title' => t('Discard query logs older than'),
-    '#default_value'   => variable_get('apachesolr_stats_flush_log_timer', 259200),
-    '#options' => $period,
+    '#default_value' => variable_get('apachesolr_stats_flush_log_timer', 259200),
+    '#options' => $periods,
     '#description' => t('Older query log entries will be automatically discarded. (Requires a correctly configured <a href="@cron">cron maintenance task</a>.)', array('@cron' => url('admin/reports/status')))
+  );
+  
+  // Blacklist settings.
+  $form['access'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Log blacklist'),
+    '#description' => t('Note: Changing this does not alter existing logged queries.'),
   );
   $form['access']['apachesolr_stats_ignore_ip_list'] = array(
     '#type' => 'textarea',
     '#title' => t('IP addresses that will not be logged'),
-    '#default_value'   => variable_get('apachesolr_stats_ignore_ip_list', ''),
+    '#default_value' => variable_get('apachesolr_stats_ignore_ip_list', ''),
     '#description' => t('Enter IP addresses (e.g.: 192.168.1.2), one per line. You can match entire subnets using a partial IP address ending with a period (e.g.: 192.168.)')
   );
   $form['access']['apachesolr_stats_ignore_role_list'] = array(
@@ -90,8 +91,10 @@ function apachesolr_stats_admin() {
     '#title' => t('User roles that will not be logged'),
     '#options' => user_roles() ,
     '#default_value' => variable_get('apachesolr_stats_ignore_role_list', array()),
-    '#description' => t('Check all roles which should not be logged'),
+    '#description' => t('Check all roles which should not be logged.'),
   );
+
+  // Google gadget settings.
   $form['gadget'] = array(
     '#type' => 'fieldset',
     '#title' => t('Google Gadget settings'),
@@ -452,6 +455,20 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
     $chd_max = ($chd_max < $num) ? $num : $chd_max;
     $chd[] = $num;
   }
+  // Add missing data for time between last timeslot and current time.
+  $current_timeslot = intval(time() / $granularity['timespan']);
+  for ($t = $last_timeslot + 1; $t <= $current_timeslot; $t++) {
+    $chd_min = ($chd_min > 0) ? 0 : $chd_min;
+    // Insert at beginning.
+    array_unshift($chd, 0);
+  }
+
+  // Fix min if min and max are the same.
+  if ($chd_min == $chd_max) {
+    $chd_min = 0;
+  }
+
+  // Since we read the log from the database newest-first, reverse the data for rendering.
   $chd = array_reverse($chd);
 
   // Generate basic image URL
@@ -460,9 +477,10 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
   // Add labels
   $chxl = "";
   if ($chd_max > 0) {
+    // Add y-axis labels.
     $chxl .= "0:|". intval($chd_min) ."|". intval($chd_max);
 
-    // Show average value in a label
+    // Show average value in a label on right-hand side.
     if ($average !== FALSE) {
       $image_url .= "&chxp=1," . intval($average / $chd_max * 100);
       $chxl .= sprintf("|1:|%s=%.2f", t('average'), $average);
@@ -473,7 +491,7 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
 
     // Add time/date labels
     $earliest_timestamp = $start_timeslot * $granularity['timespan'];
-    $last_timestamp = $last_timeslot * $granularity['timespan'];
+    $last_timestamp = $current_timeslot * $granularity['timespan'];
     $mid_timestamp = ($last_timestamp + $earliest_timestamp) / 2;
     $time_msg_1 = drupal_urlencode(strftime($granularity['format'], $earliest_timestamp));
     $time_msg_2 = drupal_urlencode(strftime($granularity['format'], $mid_timestamp));
@@ -485,7 +503,6 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
       $chxt = "x";
       $chxl .= "|1:|{$time_msg_1}|{$time_msg_2}|{$time_msg_3}";
     }
-
     $image_url .= "&chxl={$chxl}&chxt={$chxt}";
   }
 
@@ -511,8 +528,12 @@ function apachesolr_stats_encodedata($chd, $chd_min, $chd_max) {
   $encoded_values = '';
   if (is_array($chd)) {
     foreach ($chd as $value) {
-      $encoded_values .= substr($encoder_string, (($value-$chd_min) / $chd_max)*61, 1);
+      $encoded_values .= substr($encoder_string, (($value - $chd_min) / $chd_max) * 61, 1);
     }
+  }
+  // Google does not like single-valued line charts; fix that.
+  if (strlen($encoded_values) == 1) {
+    $encoded_values = "99";
   }
   return $encoded_values;
 }

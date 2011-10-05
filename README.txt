@@ -1,4 +1,4 @@
-
+README.txt
 Apache Solr Statistics module for Drupal.
 
 -- SUMMARY --
