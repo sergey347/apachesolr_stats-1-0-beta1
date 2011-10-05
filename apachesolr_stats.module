@@ -604,22 +604,22 @@ function apachesolr_stats_facet_usage_graph($facets) {
   $leyends = array();
   $data = array();
   $label_cutoff = 40;
-  $total_queries = 0;
+  $total_queries = $facets['any']['usage'];
   foreach ($facets as $fieldname => $facet) {
     $leyend = preg_replace("/^.*ilter by /", "", $facet['info']);
     if (strlen($leyend) > $label_cutoff) {
       $leyend = substr($leyend, 0, $label_cutoff) . "...";
     }
     $leyends[] = drupal_urlencode($leyend);
-    $data[] = isset($facet['usage']) ? $facet['usage'] : 0;
+    $data[] = ($facet['usage'] / $total_queries) * 100;
   }
-  $chd = apachesolr_stats_encodedata($data, 0, $facets['any']['usage']);
+  $chd = 's:' . apachesolr_stats_encodedata($data, 0, 100);
   // array_reverse() in next line due to apachesolr_stats_encodedata() encoding data backwards
   $chl = implode('|', array_reverse($leyends));
   $height = 30 + sizeof($leyends) * 28;
   // Percentage labels
   $chm = "N*f0*%,000000,0,-1,11";
-  $chart = "<img src='http://chart.apis.google.com/chart?chxt=y&cht=bhs&chma=20,20,20,20&chd=s:{$chd}&chs=350x{$height}&chds=0,{$total_queries}&chxl=0:|{$chl}&chm={$chm}' />";
+  $chart = "<img src='http://chart.apis.google.com/chart?chxt=y&cht=bhs&chma=20,20,20,20&chd={$chd}&chs=350x{$height}&chds=0,100&chxl=0:|{$chl}&chm={$chm}' />";
   return $chart;
 }
 
@@ -633,6 +633,7 @@ function apachesolr_stats_get_facets() {
   foreach (apachesolr_get_enabled_facets() as $module => $enabled) {
     foreach ($enabled as $facet_id) {
       $facets[$facet_id] = $all_facets[$facet_id];
+      $facets[$facet_id]['usage'] = 0;
     }
   }
 
@@ -640,10 +641,12 @@ function apachesolr_stats_get_facets() {
   $facets['kw'] = array(
     'facet_field' => 'kw',
     'info' => 'Keyword search',
+    'usage' => 0,
   );
   $facets['any'] = array(
     'facet_field' => 'any',
     'info' => '[All queries including any filter and/or keywords]',
+    'usage' => 0,
   );
   /*
   $facets['none'] = array(
@@ -707,9 +710,6 @@ function apachesolr_stats_get_granularities() {
 function apachesolr_stats_generate_report_elements($granularity) {
   // Initialize
   $facets = apachesolr_stats_get_facets();
-  foreach ($facets as &$facet) {
-    $facet['usage'] = 0;
-  }
   $suggestions = 0;
   $queries = 0;
   $users = array();
@@ -749,16 +749,13 @@ function apachesolr_stats_generate_report_elements($granularity) {
 
     // Field usage; only when on first results page (meaning it's a fresh search)
     if ($record->page == "") {
-      unset($facet_processed_flag);
+      $facet_processed_flag = array();
       $ok = preg_match_all('/[^ ]+/', $record->filters, $matches);
-      foreach($matches[0] as $word) {
+      foreach ($matches[0] as $word) {
         $fieldname = apachesolr_stats_determine_field_from_query($facets, $word);
         if ($fieldname != false) {
-          if (!isset($facets[$fieldname]['usage'])) {
-            $facets[$fieldname] = array('usage' => 0);
-          }
           // Count this facet field only once per query
-          if ($facet_processed_flag[$fieldname] != true) {
+          if (!isset($facet_processed_flag[$fieldname])) {
             // Add 1 to usage of term from vocabulary
             $facets[$fieldname]['usage']++;
             // Mark so we don't count it again for this query
@@ -768,15 +765,15 @@ function apachesolr_stats_generate_report_elements($granularity) {
       }
 
       if (trim($record->keywords) != "") {
-        if (isset($facet_processed_flag['kw']) && $facet_processed_flag['kw'] != true) {
-          @$facets['kw']['usage']++;
+        if (!isset($facet_processed_flag['kw']) || $facet_processed_flag['kw'] != true) {
+          $facets['kw']['usage']++;
           $facet_processed_flag['kw'] = true;
 
           // Keep track of individual keywords used
           $keys_filtered = drupal_strtolower(trim($record->keywords));
           @$keywords[$keys_filtered]++;
 
-          // Count keywords with zero results; only when no filters issued.
+          // Count keywords with zero results; but only when no filters issued.
           if ($record->numfound == 0 && !$record->filters) {
             @$keywords_noresults[$keys_filtered]++;
           }
@@ -786,7 +783,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
       }
 
       // Count each unique query
-      @$facets["any"]['usage']++;
+      $facets["any"]['usage']++;
 
       // Keep track of how many fields were active per query
       @$simultaneous_fields[sizeof($facet_processed_flag)]++;
@@ -839,15 +836,6 @@ function apachesolr_stats_generate_report_elements($granularity) {
     'value' => t('Total: @total', array('@total' => $total_queries)) . '<br />' . $chart
   );
 
-  // Chart for users per timeslot
-  /*
-  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['users_per_slot'], $start_timeslot, $last_timeslot, sizeof($users) / ($last_timeslot-$start_timeslot+1));
-  $report_elements['total_users_per'] = array(
-    'name' => t('Unique users'),
-    'value' => t('Total: @total', array('@total' => sizeof($users))) . '<br />' . $chart
-  );
-  */
-
   // Chart for sessions per timeslot
   $chart = apachesolr_stats_chart($granularity, $data_per_granularity['sessions_per_slot'], $start_timeslot, $last_timeslot, sizeof($sessions), sizeof($sessions) / ($last_timeslot-$start_timeslot+1));
   $report_elements['total_sessions_per'] = array(
@@ -855,7 +843,6 @@ function apachesolr_stats_generate_report_elements($granularity) {
     'value' => t('Total: @total', array('@total' => sizeof($sessions))) . '<br />' . $chart
   );
 
-  #$report_elements['avg_queries_user'] = array('name' => t('Average requests per user'), 'value' => sprintf("%.1f", $total_queries / sizeof($users)));
   $report_elements['avg_queries_session'] = array('name' => t('Average requests per session'), 'value' => sprintf("%.1f", $total_queries / sizeof($sessions)));
 
   // Chart for average time per timeslot
@@ -965,7 +952,7 @@ function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresult
  * Return a listing of keywords for the Popular Searches block.
  */
 function apachesolr_stats_block_frequent_keywords($limit = 10) {
-  $cid = "apachesolr_stats_block_frequent_keywords:$limit";
+  $cid = "apachesolr_stats_block_frequent_keywords";
   $cached = cache_get($cid, 'cache_block');
   if ($cached && $cached->data && $cached->expire > time()) {
     return $cached->data;
@@ -1027,9 +1014,33 @@ function apachesolr_stats_block($op = 'list', $delta = 0) {
         // Return a block array.
         $block = array(
           'subject' => t('Popular searches'),
-          'content' => theme('item_list', $links),
+          'content' => theme('apachesolr_stats_block', $links),
         );
         return $block;
       }
   }
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function apachesolr_stats_theme() {
+  return array(
+    'apachesolr_stats_block' => array(
+      'arguments' => array('links'),
+    ),
+  );
+}
+
+
+/**
+ * Theme content for apachesolr_stats_block().
+ * 
+ * @param array $links
+ *   An array, each element is a link to launch a search for that word.
+ * @return
+ *   HTML, the themed block content.
+ */
+function theme_apachesolr_stats_block($links) {
+  return theme('item_list', $links);
 }

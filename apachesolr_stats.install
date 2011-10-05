@@ -13,6 +13,14 @@ function apachesolr_stats_install() {
 function apachesolr_stats_uninstall() {
   // Remove tables.
   drupal_uninstall_schema('apachesolr_stats');
+  // Remove variables.
+  variable_del('apachesolr_stats_enabled');
+  variable_del('apachesolr_stats_flush_log_timer');
+  variable_del('apachesolr_stats_ignore_ip_list');
+  variable_del('apachesolr_stats_ignore_role_list');
+  variable_del('apachesolr_stats_gadget_key');
+  // Remove cached info.
+  cache_clear_all('apachesolr_stats_block_frequent_keywords', 'cache_block');
 }
 
 /**
