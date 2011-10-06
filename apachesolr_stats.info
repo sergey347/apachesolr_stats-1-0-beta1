@@ -1,5 +1,5 @@
 name = Apache Solr statistics
 description = Keeps and reports statistics about Apache Solr usage and performance.
 dependencies[] = apachesolr
-package = Apache Solr
-core = "6.x"
+package = Search Toolkit
+core = 7.x

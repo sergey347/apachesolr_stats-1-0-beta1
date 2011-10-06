@@ -6,39 +6,39 @@
  */
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function apachesolr_stats_menu() {
   return array(
-    'admin/settings/apachesolr/stats' => array(
-      'title'            => 'Statistics',
-      'description'      => 'Apache Solr Statistics settings to measure usage and performance.',
-      'page callback'    => 'drupal_get_form',
-      'page arguments'   => array('apachesolr_stats_admin'),
+    'admin/config/apachesolr/stats' => array(
+      'title' => 'Statistics',
+      'description' => 'Apache Solr Statistics settings to measure usage and performance.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('apachesolr_stats_admin'),
       'access arguments' => array('administer search'),
       'type' => MENU_LOCAL_TASK,
     ),
     'admin/reports/apachesolr/stats' => array(
-      'title'            => 'Statistics',
-      'description'      => 'Report of Apache Solr usage and performance.',
-      'page callback'    => 'apachesolr_stats_report',
-      'page arguments'   => array(),
+      'title' => 'Statistics',
+      'description' => 'Report of Apache Solr usage and performance.',
+      'page callback' => 'apachesolr_stats_report',
+      'page arguments' => array(),
       'access arguments' => array('administer search'),
       'type' => MENU_LOCAL_TASK,
     ),
     'apachesolr_stats/gadget' => array(
       'title' => 'Apache Solr Google Gadget',
-      'page callback'    => 'apachesolr_stats_report_gadget',
-      'description'      => 'Provides content for Google Gadget.',
-      'page arguments'   => array(),
+      'page callback' => 'apachesolr_stats_report_gadget',
+      'description' => 'Provides content for Google Gadget.',
+      'page arguments' => array(),
       'access arguments' => array('access content'),
       'type' => MENU_CALLBACK,
     ),
     'apachesolr_stats/element/%/%/%' => array(
       'title' => 'Apache Solr Google Gadget Elements',
-      'page callback'    => 'apachesolr_stats_report_gadget_element',
-      'description'      => 'Provides content for Google Gadget.',
-      'page arguments'   => array(2,3,4),
+      'page callback' => 'apachesolr_stats_report_gadget_element',
+      'description' => 'Provides content for Google Gadget.',
+      'page arguments' => array(2, 3, 4),
       'access arguments' => array('access content'),
       'type' => MENU_CALLBACK,
     ),
@@ -48,7 +48,7 @@ function apachesolr_stats_menu() {
 /**
  * Build the settings form.
  */
-function apachesolr_stats_admin() {
+function apachesolr_stats_admin($form, &$form_state) {
   $form = array();
 
   $form['tip'] = array(
@@ -56,13 +56,16 @@ function apachesolr_stats_admin() {
     '#value' => t('You can also visit the <a href="@report-url">report page</a>.',
       array('@report-url' => url('admin/reports/apachesolr/stats'))),
   );
-  
+
   $form['apachesolr_stats_enabled'] = array(
     '#type' => 'radios',
     '#title' => t('Enable query log'),
     '#default_value' => variable_get('apachesolr_stats_enabled', 0),
-    '#options' => array('1' => t('Enabled'), '0' => t('Disabled')),
-    '#description' => t('Log information about all queries launched via the Apache Solr Search Integration module.')
+    '#options' => array(
+      '1' => t('Enabled'),
+      '0' => t('Disabled'),
+    ),
+    '#description' => t('Log information about all queries launched via the Apache Solr Search Integration module.'),
   );
 
   $periods = drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
@@ -71,9 +74,9 @@ function apachesolr_stats_admin() {
     '#title' => t('Discard query logs older than'),
     '#default_value' => variable_get('apachesolr_stats_flush_log_timer', 259200),
     '#options' => $periods,
-    '#description' => t('Older query log entries will be automatically discarded. (Requires a correctly configured <a href="@cron">cron maintenance task</a>.)', array('@cron' => url('admin/reports/status')))
+    '#description' => t('Older query log entries will be automatically discarded. (Requires a correctly configured <a href="@cron">cron maintenance task</a>.)', array('@cron' => url('admin/reports/status'))),
   );
-  
+
   // Blacklist settings.
   $form['access'] = array(
     '#type' => 'fieldset',
@@ -84,12 +87,12 @@ function apachesolr_stats_admin() {
     '#type' => 'textarea',
     '#title' => t('IP addresses that will not be logged'),
     '#default_value' => variable_get('apachesolr_stats_ignore_ip_list', ''),
-    '#description' => t('Enter IP addresses (e.g.: 192.168.1.2), one per line. You can match entire subnets using a partial IP address ending with a period (e.g.: 192.168.)')
+    '#description' => t('Enter IP addresses (e.g.: 192.168.1.2), one per line. You can match entire subnets using a partial IP address ending with a period (e.g.: 192.168.)'),
   );
   $form['access']['apachesolr_stats_ignore_role_list'] = array(
     '#type' => 'checkboxes',
     '#title' => t('User roles that will not be logged'),
-    '#options' => user_roles() ,
+    '#options' => user_roles(),
     '#default_value' => variable_get('apachesolr_stats_ignore_role_list', array()),
     '#description' => t('Check all roles which should not be logged.'),
   );
@@ -98,7 +101,7 @@ function apachesolr_stats_admin() {
   $form['gadget'] = array(
     '#type' => 'fieldset',
     '#title' => t('Google Gadget settings'),
-    '#description' => t('You can embed statistics displays via Google Gadget by configuring the setting below.')
+    '#description' => t('You can embed statistics displays via Google Gadget by configuring the setting below.'),
   );
   $key = variable_get("apachesolr_stats_gadget_key", "");
   $form['gadget']['apachesolr_stats_gadget_key'] = array(
@@ -113,8 +116,7 @@ function apachesolr_stats_admin() {
     $gadget_embed_html = "<a href='{$gadget_embed_url}'><img src='http://buttons.googlesyndication.com/fusion/add.gif' border='0' alt='Add to Google'></a>";
     $form['gadget']['embed_link'] = array(
       '#type' => 'markup',
-      '#value' =>
-        t('The gadget is currently available at these URLs:')
+      '#value' => t('The gadget is currently available at these URLs:')
         . '<ul><li>' . l(t('Source'), $gadget_url)
         . '<li>' . l(t('Embed'), $gadget_embed_url) . ' ' . $gadget_embed_html . '</ul>',
     );
@@ -123,22 +125,20 @@ function apachesolr_stats_admin() {
 }
 
 /**
- * Implementation of hook_apachesolr_modify_query().
+ * Implements hook_apachesolr_query_alter().
  *
  * Adds debugQuery parameter to Solr call that returns processing time, etc.
  */
-function apachesolr_stats_apachesolr_modify_query(&$query, &$params, $caller) {
+function apachesolr_stats_apachesolr_query_alter($query) {
   if (variable_get('apachesolr_stats_enabled', 0)) {
     // Add the debug query argument.
     // See: http://wiki.apache.org/solr/CommonQueryParameters#head-f45a9396425956a4db8d6478ed6029adfb7b0858
-    if ($caller == 'apachesolr_search') {
-      $params['debugQuery'] = 'true';
-    }
+    $query->replaceParam('debugQuery', 'true');
   }
 }
 
 /**
- * Implementation of hook_exit().
+ * Implements hook_exit().
  *
  * This is the spot where actual logging takes place.
  */
@@ -163,42 +163,39 @@ function apachesolr_stats_exit() {
   }
 
   global $user;
-  
+
   $roles_ignore_list = variable_get('apachesolr_stats_ignore_role_list', array());
-  $test = array_intersect(array_keys($user->roles),array_values($roles_ignore_list));
+  $test = array_intersect(array_keys($user->roles), array_values($roles_ignore_list));
   if (count($test) > 0) {
     return;
   }
-  
+
   if (! apachesolr_has_searched()) {
     return;
   }
-  $response = apachesolr_static_response_cache();
   $query = apachesolr_current_query();
-  $url_queryvalues = $query->get_url_queryvalues();
+  $response = apachesolr_static_response_cache($query->getSearcher());
   $num_suggestions = 0;
   if (isset($response->spellcheck) && isset($response->spellcheck->suggestions) && $response->spellcheck->suggestions != NULL) {
-    $num_suggestions = (int) get_object_vars($response->spellcheck->suggestions);
+    $num_suggestions = 1;
   }
 
-  db_query("INSERT INTO {apachesolr_stats}
-    (timestamp, uid, sid, numfound, showed_suggestions, total_time, prepare_time, process_time, page, keywords, filters, sort, params)
-    VALUES
-    (%d, %d, '%s', %d, %d, %d, %d, %d, '%s', '%s','%s','%s','%s')",
-    time(),
-    $user->uid,
-    session_id(),
-    $response->response->numFound,
-    $num_suggestions,
-    $response->debug->timing->time,
-    $response->debug->timing->prepare->time,
-    $response->debug->timing->process->time,
-    isset($_GET['page']) ? $_GET['page'] : '',
-    $query->get_query_basic(),
-    (isset($url_queryvalues['filters']) ? $url_queryvalues['filters'] : ''),
-    (isset($url_queryvalues['solrsort']) ? $url_queryvalues['solrsort'] : ''),
-    serialize($response->responseHeader->params)
-  );
+  $id = db_insert('apachesolr_stats')
+    ->fields(array(
+      'timestamp' => REQUEST_TIME,
+      'uid' => $user->uid,
+      'sid' => session_id(),
+      'numfound' => $response->response->numFound,
+      'showed_suggestions' => $num_suggestions,
+      'total_time' => $response->debug->timing->time,
+      'prepare_time' => $response->debug->timing->prepare->time,
+      'process_time' => $response->debug->timing->process->time,
+      'page' => isset($_GET['page']) ? $_GET['page'] : '',
+      'keywords' => $query->getParam('q'),
+      'filters' => serialize($query->getFilters()),
+      'sort' => serialize($query->getSolrsort()),
+    ))
+    ->execute();
 
   return;
 
@@ -359,7 +356,7 @@ function apachesolr_stats_report_gadget_element($requested_granularity, $request
 function apachesolr_stats_report($picked_granularity = "minute") {
   drupal_set_title(t("Apache Solr statistics report"));
   if (! variable_get('apachesolr_stats_enabled', 0)) {
-    return t('Logging is disabled in the !link. Enable it to log Apache Solr queries.', array('!link' => l('module configuration page', 'admin/settings/apachesolr/stats')));
+    return t('Logging is disabled in the !link. Enable it to log Apache Solr queries.', array('!link' => l('module configuration page', 'admin/config/apachesolr/stats')));
   }
 
   $granularities = apachesolr_stats_get_granularities();
@@ -376,7 +373,7 @@ function apachesolr_stats_report($picked_granularity = "minute") {
 
   // Create the output HTML:::::::::::::::::::::::::::::::::::::
   // Granularity picker:
-    // Leave only those less than apachesolr_stats_flush_log_timer
+  // Leave only those less than apachesolr_stats_flush_log_timer
   $timer_max = variable_get('apachesolr_stats_flush_log_timer', 259200);
   $output = "<div class='granularity'>" . t('Choose the report time span:');
   foreach ($granularities as $name => $granularity) {
@@ -386,7 +383,8 @@ function apachesolr_stats_report($picked_granularity = "minute") {
     $output .= " &nbsp; ";
     if ($name != $picked_granularity) {
       $output .= l($granularity["last_msg"], "admin/reports/apachesolr/stats/$name");
-    } else {
+    }
+    else {
       $output .= "<strong>" . $granularity["last_msg"] . "</strong>";
     }
   }
@@ -396,7 +394,7 @@ function apachesolr_stats_report($picked_granularity = "minute") {
     // Report description
     $output .= t('This is an overview of Apache Solr usage and performance.');
     $output .= ' ' . t('You can also visit the !settingslink.',
-      array('!settingslink' => l(t('settings page'), 'admin/settings/apachesolr/stats'))
+      array('!settingslink' => l(t('settings page'), 'admin/config/apachesolr/stats'))
     );
 
     // Add Google Gadgets embedding link
@@ -412,13 +410,18 @@ function apachesolr_stats_report($picked_granularity = "minute") {
       // Table data
       $rows[] = array(
         "data" => array(
-          array('data' => $data['name'], 'header' => true, 'style' => 'width:33%'),
+          array(
+            'data' => $data['name'],
+            'header' => true,
+            'style' => 'width:33%',
+          ),
           array('data' => $data['value']),
-        )
+        ),
       );
     }
-    $output .= theme('table', array(), $rows);
-  } else {
+    $output .= theme('table', array('header' => array(), 'rows' => $rows));
+  }
+  else {
     drupal_set_message(t('There is not enough stored data to build a report.'));
   }
 
@@ -449,14 +452,14 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
   $chd_min = 9999999;
   $chd_max = 0;
   $total = 0;
-  for ($t = $start_timeslot; $t<=$last_timeslot; $t++) {
+  for ($t = $start_timeslot; $t <= $last_timeslot; $t++) {
     $num = isset($data[$t]) ? intval($data[$t]) : 0;
     $chd_min = ($chd_min > $num) ? $num : $chd_min;
     $chd_max = ($chd_max < $num) ? $num : $chd_max;
     $chd[] = $num;
   }
   // Add missing data for time between last timeslot and current time.
-  $current_timeslot = intval(time() / $granularity['timespan']);
+  $current_timeslot = intval(REQUEST_TIME / $granularity['timespan']);
   for ($t = $last_timeslot + 1; $t <= $current_timeslot; $t++) {
     $chd_min = ($chd_min > 0) ? 0 : $chd_min;
     // Insert at beginning.
@@ -478,14 +481,15 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
   $chxl = "";
   if ($chd_max > 0) {
     // Add y-axis labels.
-    $chxl .= "0:|". intval($chd_min) ."|". intval($chd_max);
+    $chxl .= "0:|" . intval($chd_min) . "|" . intval($chd_max);
 
     // Show average value in a label on right-hand side.
     if ($average !== FALSE) {
       $image_url .= "&chxp=1," . intval($average / $chd_max * 100);
       $chxl .= sprintf("|1:|%s=%.2f", t('average'), $average);
       $chxt = "y,r";
-    } else {
+    }
+    else {
       $chxt = "y";
     }
 
@@ -493,13 +497,14 @@ function apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_time
     $earliest_timestamp = $start_timeslot * $granularity['timespan'];
     $last_timestamp = $current_timeslot * $granularity['timespan'];
     $mid_timestamp = ($last_timestamp + $earliest_timestamp) / 2;
-    $time_msg_1 = drupal_urlencode(strftime($granularity['format'], $earliest_timestamp));
-    $time_msg_2 = drupal_urlencode(strftime($granularity['format'], $mid_timestamp));
-    $time_msg_3 = drupal_urlencode(strftime($granularity['format'], $last_timestamp));
+    $time_msg_1 = drupal_encode_path(strftime($granularity['format'], $earliest_timestamp));
+    $time_msg_2 = drupal_encode_path(strftime($granularity['format'], $mid_timestamp));
+    $time_msg_3 = drupal_encode_path(strftime($granularity['format'], $last_timestamp));
     if ($chxt) {
       $chxt = "{$chxt},x";
       $chxl .= "|2:|{$time_msg_1}|{$time_msg_2}|{$time_msg_3}";
-    } else {
+    }
+    else {
       $chxt = "x";
       $chxl .= "|1:|{$time_msg_1}|{$time_msg_2}|{$time_msg_3}";
     }
@@ -539,46 +544,32 @@ function apachesolr_stats_encodedata($chd, $chd_min, $chd_max) {
 }
 
 /**
- * Implementation of hook_cron().
+ * Implements hook_cron().
  *
  * Remove expired log messages.
  */
 function apachesolr_stats_cron() {
-  db_query('DELETE FROM {apachesolr_stats} WHERE timestamp < %d', time() - variable_get('apachesolr_stats_flush_log_timer', 259200));
+  // TODO Please review the conversion of this statement to the D7 database API syntax.
+  /* db_query('DELETE FROM {apachesolr_stats} WHERE timestamp < %d', REQUEST_TIME - variable_get('apachesolr_stats_flush_log_timer', 259200)) */
+  db_delete('apachesolr_stats')
+  ->condition('timestamp', REQUEST_TIME - variable_get('apachesolr_stats_flush_log_timer', 259200), '<')
+  ->execute();
 }
 
 /**
- * Implementation of apachesolr_search_result_alter().
- */
-/* TODO: change results here to track clickthrus?
-function apachesolr_stats_apachesolr_search_result_alter($doc) {
-  dsm($doc);
-}
-*/
-
-/**
- * Determine the facet field from a word: im_vid_XX, kw or XXX (anything before ":", like tid, uid, etc)
+ * Determine the facet field from the filter name used in a query.
+ * 
  * @return string
  *   The facet field id.
  */
-function apachesolr_stats_determine_field_from_query($facets, $word) {
-  if (strpos($word, ":") !== false) {
-    list($fieldname, $value) = explode(":", $word);
-    if ($fieldname == "tid") {
-      // Replace tid with the correct facet field name (im_vid_XXX) where XXX = vid
-      $term = taxonomy_get_term(intval(substr($word, 4)));
-      $fieldname = "im_vid_" . $term->vid;
-    } else {
-      // Check if $fieldname is really a facet, if not count as keyword
-      if (empty($facets[$fieldname])) {
-        $fieldname = false;
-      }
-    }
-  } else {
-    // No ":" found, so it's a keyword
-    $fieldname = false;
+function apachesolr_stats_determine_field_from_query($filter_name) {
+  // TODO: Is this an exhaustive list?
+  switch ($filter_name) {
+    case 'is_uid':
+      return 'author';
+    default:
+      return $filter_name;
   }
-  return $fieldname;
 }
 
 /**
@@ -591,24 +582,40 @@ function apachesolr_stats_determine_field_from_query($facets, $word) {
 function apachesolr_stats_facet_usage_table($facets) {
   // Report usage in table
   $header = array(
-    array('data' => t('Facet ID'), 'Xfield' => 'id', 'sort' => 'asc'),
-    array('data' => t('Facet info'), 'Xfield' => 'info', 'sort' => ''),
-    array('data' => t('Queries containing this facet'), 'Xfield' => 'queries', 'sort' => ''),
-    array('data' => t('% of queries containing this facet'), 'Xfield' => 'queries', 'sort' => ''),
+    array(
+      'data' => t('Facet ID'),
+      'Xfield' => 'id',
+      'sort' => 'asc',
+    ),
+    array(
+      'data' => t('Facet info'),
+      'Xfield' => 'info',
+      'sort' => '',
+    ),
+    array(
+      'data' => t('Queries containing this facet'),
+      'Xfield' => 'queries',
+      'sort' => '',
+    ),
+    array(
+      'data' => t('% of queries containing this facet'),
+      'Xfield' => 'queries',
+      'sort' => '',
+    ),
     #array('data' => 'Clickthrus from queries containing this facet', 'Xfield' => 'ct', 'sort' => ''),
     #array('data' => 'Clickthru rate for facet', 'Xfield' => 'ctp', 'sort' => ''),
   );
-  foreach($facets as $fieldname => $facet) {
+  foreach ($facets as $fieldname => $facet) {
     $rows[$fieldname][] = $fieldname;
     $rows[$fieldname][] = $facet['info'];
     $rows[$fieldname][] = $facet['usage'];
-    $rows[$fieldname][] = sprintf("%2.1f%%", $facet['usage']/$facets['any']['usage']*100);
+    $rows[$fieldname][] = sprintf("%2.1f%%", $facet['usage'] / $facets['any']['usage'] * 100);
     #$rows[$fieldname][] = $facet['clickthru'];
     #if ($facet['usage']>0) {
     #  $rows[$fieldname][] = sprintf("%2.1f%%", ($facet['clickthru'] / $facet['usage'])*100);
     #}
   }
-  $output = theme('table', $header, $rows, array('style' => 'font-size:80%'));
+  $output = theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('style' => 'font-size:80%')));
   return $output;
 }
 
@@ -631,7 +638,7 @@ function apachesolr_stats_facet_usage_graph($facets) {
     if (strlen($leyend) > $label_cutoff) {
       $leyend = substr($leyend, 0, $label_cutoff) . "...";
     }
-    $leyends[] = drupal_urlencode($leyend);
+    $leyends[] = drupal_encode_path($leyend);
     $data[] = ($facet['usage'] / $total_queries) * 100;
   }
   $chd = 's:' . apachesolr_stats_encodedata($data, 0, 100);
@@ -648,13 +655,26 @@ function apachesolr_stats_facet_usage_graph($facets) {
  * Returns the facet array to report on.
  */
 function apachesolr_stats_get_facets() {
-  $all_facets = module_invoke_all('apachesolr_facets');
-  // Keep only those enabled according to apachesolr_get_enabled_facets()
   $facets = array();
-  foreach (apachesolr_get_enabled_facets() as $module => $enabled) {
-    foreach ($enabled as $facet_id) {
-      $facets[$facet_id] = $all_facets[$facet_id];
-      $facets[$facet_id]['usage'] = 0;
+
+  if (module_exists('facetapi')) {
+    $searcher_info = apachesolr_facetapi_searcher_info();
+    $default_environment = apachesolr_default_environment();
+    $searcher_name = 'apachesolr@' . $default_environment;
+    $searcher = $searcher_info[$searcher_name];
+    // TODO: Why do I need to add 'node' element to searcher array?
+    $searcher['types']['node'] = TRUE;
+    $all_facets = module_invoke_all('facetapi_facet_info', $searcher);
+    foreach ($all_facets as $facet_id => $facet) {
+      // Limit to enabled facets only.
+      // TODO: Check that "block" realm is only one actually needed to check.
+      if (facetapi_facet_enabled($searcher_name, 'block', $facet_id)) {
+        $facets[$facet_id] = array(
+          'facet_field' => $facet_id,
+          'info' => $facet['label'],
+          'usage' => 0,
+        );
+      }
     }
   }
 
@@ -688,28 +708,28 @@ function apachesolr_stats_get_granularities() {
     'minute' => array(
       'name' => t('minute'),
       'timespan' => 60,
-      'time_before' => 60*60*24, // One day before
+      'time_before' => 60 * 60 * 24, // One day before
       'last_msg' => t('last day'),
       'format' => '%H:%M',
     ),
     'hour' => array(
       'name' => t('hour'),
-      'timespan' => 60*60,
-      'time_before' => 60*60*24*7, // One week before
+      'timespan' => 60 * 60,
+      'time_before' => 60 * 60 * 24 * 7, // One week before
       'last_msg' => t('last week'),
       'format' => '%m/%d %H:%M',
     ),
     'day' => array(
       'name' => t('day'),
-      'timespan' => 60*60*24,
-      'time_before' => 60*60*24*2*16, // 4 weeks before
+      'timespan' => 60 * 60 * 24,
+      'time_before' => 60 * 60 * 24 * 2 * 16, // 4 weeks before
       'last_msg' => t('last month'),
       'format' => '%m/%d',
     ),
     'all' => array(
       'name' => t('day'),
-      'timespan' => 60*60*24,
-      'time_before' => 60*60*24*7*16, // 16 weeks before
+      'timespan' => 60 * 60 * 24,
+      'time_before' => 60 * 60 * 24 * 7 * 16, // 16 weeks before
       'last_msg' => t('all time (depends on settings)'),
       'format' => '%m/%d',
     ),
@@ -747,8 +767,8 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $keywords_noresults = array();
 
   // Scan the logfile and build statistics arrays
-  $result = db_query("SELECT * FROM {apachesolr_stats} WHERE timestamp > %d ORDER BY timestamp DESC", time()- $granularity['time_before']);
-  while ($record = db_fetch_object($result)) {
+  $result = db_query("SELECT * FROM {apachesolr_stats} WHERE timestamp > :timestamp ORDER BY timestamp DESC", array(':timestamp' => REQUEST_TIME - $granularity['time_before']));
+  foreach ($result as $record) {
     $timeslot = intval($record->timestamp / $granularity['timespan']);
     if ($last_timeslot == 0) {
       $last_timeslot = $timeslot;
@@ -771,10 +791,9 @@ function apachesolr_stats_generate_report_elements($granularity) {
     // Field usage; only when on first results page (meaning it's a fresh search)
     if ($record->page == "") {
       $facet_processed_flag = array();
-      $ok = preg_match_all('/[^ ]+/', $record->filters, $matches);
-      foreach ($matches[0] as $word) {
-        $fieldname = apachesolr_stats_determine_field_from_query($facets, $word);
-        if ($fieldname != false) {
+      foreach (unserialize($record->filters) as $filter) {
+        $fieldname = apachesolr_stats_determine_field_from_query($filter['#name']);
+        if ($fieldname != false && isset($facets[$fieldname])) {
           // Count this facet field only once per query
           if (!isset($facet_processed_flag[$fieldname])) {
             // Add 1 to usage of term from vocabulary
@@ -799,7 +818,8 @@ function apachesolr_stats_generate_report_elements($granularity) {
             @$keywords_noresults[$keys_filtered]++;
           }
         }
-      } else {
+      }
+      else {
         $no_keywords++;
       }
 
@@ -814,7 +834,13 @@ function apachesolr_stats_generate_report_elements($granularity) {
 
     // Sort usage; count only the first page of results
     if ($record->page == "") {
-      @$sort_usage[($record->sort) ? $record->sort : "relevance"]++;
+      $sort = unserialize($record->sort);
+      if (sizeof($sort) == 0) {
+        @$sort_usage["relevance"]++;
+      }
+      else {
+        @$sort_usage[$sort['#name']]++;
+      }
     }
 
     // Group some stats into timeslots (minutes, hours) to show trends
@@ -842,29 +868,32 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $report_elements['span'] = array(
     'name' => t('Report span'),
     'value' => t('Last @interval (@startdate to @enddate)', array(
-      '@interval' => format_interval(3600 + time() - $first_timestamp),
+      '@interval' => format_interval(3600 + REQUEST_TIME - $first_timestamp),
       '@startdate' => format_date($first_timestamp),
-      '@enddate' => format_date(time())
+      '@enddate' => format_date(REQUEST_TIME),
     ))
     . '<br />'
-    . t('Data points in charts are one point per @granularity.', array('@granularity' => $granularity['name']))
+    . t('Data points in charts are one point per @granularity.', array('@granularity' => $granularity['name'])),
   );
   #$report_elements['queries'] = array('name' => t('Total requests to Solr'), 'value' => $total_queries);
   // Chart for queries per timeslot
-  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['queries'], $start_timeslot, $last_timeslot, $total_queries, $total_queries / ($last_timeslot-$start_timeslot+1));
+  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['queries'], $start_timeslot, $last_timeslot, $total_queries, $total_queries / ($last_timeslot -$start_timeslot + 1));
   $report_elements['total_queries_per'] = array(
     'name' => t('Requests'),
-    'value' => t('Total: @total', array('@total' => $total_queries)) . '<br />' . $chart
+    'value' => t('Total: @total', array('@total' => $total_queries)) . '<br />' . $chart,
   );
 
   // Chart for sessions per timeslot
-  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['sessions_per_slot'], $start_timeslot, $last_timeslot, sizeof($sessions), sizeof($sessions) / ($last_timeslot-$start_timeslot+1));
+  $chart = apachesolr_stats_chart($granularity, $data_per_granularity['sessions_per_slot'], $start_timeslot, $last_timeslot, sizeof($sessions), sizeof($sessions) / ($last_timeslot -$start_timeslot + 1));
   $report_elements['total_sessions_per'] = array(
     'name' => t('Unique sessions'),
-    'value' => t('Total: @total', array('@total' => sizeof($sessions))) . '<br />' . $chart
+    'value' => t('Total: @total', array('@total' => sizeof($sessions))) . '<br />' . $chart,
   );
 
-  $report_elements['avg_queries_session'] = array('name' => t('Average requests per session'), 'value' => sprintf("%.1f", $total_queries / sizeof($sessions)));
+  $report_elements['avg_queries_session'] = array(
+    'name' => t('Average requests per session'),
+    'value' => sprintf("%.1f", $total_queries / sizeof($sessions)),
+  );
 
   // Chart for average time per timeslot
   $data = array();
@@ -875,41 +904,46 @@ function apachesolr_stats_generate_report_elements($granularity) {
   $chart = apachesolr_stats_chart($granularity, $data, $start_timeslot, $last_timeslot, $total_queries, $time['total'] / $total_queries);
   $report_elements['query_avg_time'] = array(
     'name' => t('Average time per request (miliseconds)'),
-    'value' =>
-      sprintf("%s: %.2f ms / %s: %.2f ms / %s: %.2f ms", t('Minimum'), $time['min'], t('Average'), $time['total'] / $total_queries, t('Maximum'), $time['max'])
+    'value' => sprintf("%s: %.2f ms / %s: %.2f ms / %s: %.2f ms", t('Minimum'), $time['min'], t('Average'), $time['total'] / $total_queries, t('Maximum'), $time['max'])
         . '</br>'
-        . $chart
+        . $chart,
   );
 
   // Most-used keywords
   $report_elements['keywords'] = array(
     'name' => t('Top search phrases'),
-    'value' => apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresults)
+    'value' => apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresults),
   );
 
   // Most-used keywords with no results
   $report_elements['keywords_noresults'] = array(
     'name' => t('Top search phrases with no results'),
-    'value' => apachesolr_stats_report_frequent_keywords($keywords_noresults, $keywords_noresults, "error")
+    'value' => apachesolr_stats_report_frequent_keywords($keywords_noresults, $keywords_noresults, "error"),
   );
 
   // Total spellchecker suggestions
-  $report_elements['spellchecker'] = array('name' => t('Total spellchecker suggestions'), 'value' => $suggestions);
+  $report_elements['spellchecker'] = array(
+    'name' => t('Total spellchecker suggestions'),
+    'value' => $suggestions,
+  );
 
   // Chart for sort usage
   $leyends = array();
   foreach ($sort_usage as $key => $value) {
-    $leyends[] = drupal_urlencode($key);
+    $leyends[] = drupal_encode_path($key);
   }
   $chl = implode('|', $leyends);
   $chd = implode(',', $sort_usage);
   $chart = "<img src='http://chart.apis.google.com/chart?cht=p3&chd=t:{$chd}&chs=350x100&chl={$chl}' />";
-  $report_elements['sort_usage'] = array('name' => t('Sort usage'), 'value' => $chart);
+  $report_elements['sort_usage'] = array(
+    'name' => t('Sort usage'),
+    'value' => $chart,
+  );
 
   // Chart for field usage
   $report_elements['field_usage'] = array(
     'name' => t('Facet usage'),
-    'value' => apachesolr_stats_facet_usage_graph($facets) . apachesolr_stats_facet_usage_table($facets)
+    'value' => apachesolr_stats_facet_usage_graph($facets) . apachesolr_stats_facet_usage_table($facets),
   );
 
   return $report_elements;
@@ -938,7 +972,7 @@ function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresult
     $max = max($max, $count);
     $weighted_slice[$word] = array(
       'count' => $count,
-      'log_count' => log($count)
+      'log_count' => log($count),
     );
   }
   // Note: we need to ensure the range is slightly too large to make sure even
@@ -955,15 +989,15 @@ function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresult
     if (isset($keywords_noresults[$word])) {
       $class = "error";
     }
-    $font_size_pct = 80 + ($data['weight'])*12;
+    $font_size_pct = 80 + ($data['weight']) * 12;
     $items[] = l(
       $word, "search/apachesolr_search/$word", array(
-        'attributes' => array(
-          'class' => $class,
-          'style' => 'font-size:' . sprintf("%d%%", $font_size_pct)
-        ),
-        'absolute' => TRUE,
-      )
+      'attributes' => array(
+        'class' => $class,
+        'style' => 'font-size:' . sprintf("%d%%", $font_size_pct),
+      ),
+      'absolute' => TRUE,
+    )
     ) . " (" . $data["count"] . ")";
   }
   return implode(", ", $items);
@@ -975,15 +1009,15 @@ function apachesolr_stats_report_frequent_keywords($keywords, $keywords_noresult
 function apachesolr_stats_block_frequent_keywords($limit = 10) {
   $cid = "apachesolr_stats_block_frequent_keywords";
   $cached = cache_get($cid, 'cache_block');
-  if ($cached && $cached->data && $cached->expire > time()) {
+  if ($cached && $cached->data && $cached->expire > REQUEST_TIME) {
     return $cached->data;
   }
   $keywords = array();
   // Return keywords only last week's logged queries.
-  $timestamp = time() - 3600*24*7;
+  $timestamp = REQUEST_TIME - 3600 * 24 * 7;
   $result = db_query_range("SELECT keywords FROM {apachesolr_stats} WHERE
-      numfound > 0 AND timestamp > %d
-      ORDER BY timestamp DESC", $timestamp, 0, 5000);
+      numfound > :numfound AND timestamp > :timestamp
+      ORDER BY timestamp DESC", array(':numfound' => 0, ':timestamp' => $timestamp));
   while ($record = db_fetch_object($result)) {
     if (trim($record->keywords) != "") {
       // Keep track of individual keywords used
@@ -1005,50 +1039,51 @@ function apachesolr_stats_block_frequent_keywords($limit = 10) {
     $links[] = l($key, 'search/apachesolr_search/' . $key);
   }
   // Cache information for 10 minutes.
-  $expire = time() + 600;
+  $expire = REQUEST_TIME + 600;
   cache_set($cid, $links, 'cache_block', $expire);
   return $links;
 }
 
 /**
- * Implementation of hook_block().
+ * Implements hook_block_info().
  */
-function apachesolr_stats_block($op = 'list', $delta = 0) {
-  switch ($op) {
-    case 'list':
-      // Default block settings.
-      $blocks = array(
-        0 => array(
-          'info' => t('Apache Solr Statistics: popular searches'),
-          // Start out disabled
-          'status' => 0,
-          'region' => 'right',
-          // Should be cached equally across paths and roles.
-          'cache' => BLOCK_CACHE_GLOBAL,
-        )
-      );
-      return $blocks;
-  
-    case 'view':
-      $links = apachesolr_stats_block_frequent_keywords();
-      if ($links) {
-        // Return a block array.
-        $block = array(
-          'subject' => t('Popular searches'),
-          'content' => theme('apachesolr_stats_block', $links),
-        );
-        return $block;
-      }
+function apachesolr_stats_block_info() {
+  // Default block settings.
+  $blocks = array(
+    0 => array(
+      'info' => t('Apache Solr Statistics: popular searches'),
+      // Start out disabled
+      'status' => 0,
+      'region' => 'right',
+      // Should be cached equally across paths and roles.
+      'cache' => DRUPAL_CACHE_GLOBAL,
+    ),
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function apachesolr_stats_block_view($delta) {
+  $links = apachesolr_stats_block_frequent_keywords();
+  if ($links) {
+    // Return a block array.
+    $block = array(
+      'subject' => t('Popular searches'),
+      'content' => theme('apachesolr_stats_block', array('links' => $links)),
+    );
+    return $block;
   }
 }
 
 /**
- * Implementation of hook_theme().
+ * Implements hook_theme().
  */
 function apachesolr_stats_theme() {
   return array(
     'apachesolr_stats_block' => array(
-      'arguments' => array('links'),
+      'variables' => array('links'),
     ),
   );
 }
@@ -1056,12 +1091,12 @@ function apachesolr_stats_theme() {
 
 /**
  * Theme content for apachesolr_stats_block().
- * 
+ *
  * @param array $links
  *   An array, each element is a link to launch a search for that word.
  * @return
  *   HTML, the themed block content.
  */
-function theme_apachesolr_stats_block($links) {
-  return theme('item_list', $links);
+function theme_apachesolr_stats_block($variables) {
+  return theme('item_list', array('items' =>  $variables['links']));
 }

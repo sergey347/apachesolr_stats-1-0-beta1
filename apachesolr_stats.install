@@ -1,18 +1,21 @@
 <?php
+/**
+ * @file
+ * Install, update and uninstall functions for the apachesolr_stats module.
+ *
+ */
+
 
 /**
- * Implementation of hook_install().
+ * Implements hook_install().
  */
 function apachesolr_stats_install() {
-  drupal_install_schema('apachesolr_stats');
 }
 
 /**
- * Implementation of hook_uninstall().
+ * Implements hook_uninstall().
  */
 function apachesolr_stats_uninstall() {
-  // Remove tables.
-  drupal_uninstall_schema('apachesolr_stats');
   // Remove variables.
   variable_del('apachesolr_stats_enabled');
   variable_del('apachesolr_stats_flush_log_timer');
@@ -24,18 +27,18 @@ function apachesolr_stats_uninstall() {
 }
 
 /**
- * Implementation of hook_enable().
+ * Implements hook_enable().
  */
 function apachesolr_stats_enable() {
-  drupal_set_message(t("Apache Solr Statistics module enabled. Enable logging and other settings at the !link", array('!link' => l('module configuration page', 'admin/settings/apachesolr/stats'))));
+  drupal_set_message(t("Apache Solr Statistics module enabled. Enable logging and other settings at the !link", array('!link' => l('module configuration page', 'admin/config/apachesolr/stats'))));
 }
 
 /**
- * Implementation of hook_schema().
+ * Implements hook_schema().
  */
 function apachesolr_stats_schema() {
   $schema['apachesolr_stats'] = array(
-    'description' => t('Table that contains a log of Apache Solr queries and performace.'),
+    'description' => 'Table that contains a log of Apache Solr queries and performance.',
     'fields' => array(
       'qid' => array(
         'type' => 'serial',
@@ -106,25 +109,26 @@ function apachesolr_stats_schema() {
         'description' => 'Query keywords arguments.',
       ),
       'filters' => array(
-        'type' => 'varchar',
-        'length' => 128,
+        'type' => 'text',
+        'size' => 'normal',
         'not null' => TRUE,
-        'default' => '',
         'description' => 'Query filter arguments.',
       ),
       'sort' => array(
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
-        'default' => '',
         'description' => 'Query sort arguments.',
       ),
+      /*
       'params' => array(
         'type' => 'text',
         'not null' => TRUE,
         'size' => 'big',
         'description' => "Query object's complete parameters.",
+        'default' => 'i:0',
       ),
+       */
     ),
     'primary key' => array('qid'),
   );
