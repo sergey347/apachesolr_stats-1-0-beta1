@@ -156,7 +156,7 @@ function apachesolr_stats_exit() {
     $ips_to_ignore = preg_split('/[\s]+/', $ignore_list);
     $request_ip_address = ip_address();
     foreach ($ips_to_ignore as $ip) {
-      if (strpos($request_ip_address, $ip) === 0) {
+      if ($ip != "" && strpos($request_ip_address, $ip) === 0) {
         return;
       }
     }
