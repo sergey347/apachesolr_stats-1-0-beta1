@@ -265,7 +265,7 @@ function apachesolr_stats_report_gadget() {
     <Require feature="dynamic-height"/>
   </ModulePrefs>
 
-  <UserPref name="key" display_name="$access_key" required="true" default_value="$settings_key" />
+  <UserPref name="key" display_name="$access_key" required="true" default_value="$settings_key" datatype="string" />
   <UserPref name="element" display_name="$var_to_show" default_value="total_queries_per" datatype="enum" >
   $element_options
   </UserPref>
@@ -285,7 +285,7 @@ function apachesolr_stats_report_gadget() {
         var rand = Math.floor(Math.random()*9999)
 
         params[gadgets.io.RequestParameters.CONTENT_TYPE] = gadgets.io.ContentType.TEXT;
-        var url = "$site_base_url/apachesolr_stats/element/" + granularity + "/" + element + "/" + key + "?" + rand;
+        var url = "${site_base_url}/apachesolr_stats/element/" + granularity + "/" + element + "/" + key + "?" + rand;
         gadgets.io.makeRequest(url, response, params);
       };
       function response(obj) {
@@ -558,7 +558,7 @@ function apachesolr_stats_cron() {
 
 /**
  * Determine the facet field from the filter name used in a query.
- * 
+ *
  * @return string
  *   The facet field id.
  */
@@ -1100,3 +1100,4 @@ function apachesolr_stats_theme() {
 function theme_apachesolr_stats_block($variables) {
   return theme('item_list', array('items' =>  $variables['links']));
 }
+
