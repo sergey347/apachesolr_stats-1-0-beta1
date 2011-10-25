@@ -104,7 +104,7 @@ function apachesolr_stats_schema() {
       'keywords' => array(
         'type' => 'varchar',
         'length' => 128,
-        'not null' => TRUE,
+        'not null' => FALSE,
         'default' => '',
         'description' => 'Query keywords arguments.',
       ),
