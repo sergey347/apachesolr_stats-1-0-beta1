@@ -1017,8 +1017,8 @@ function apachesolr_stats_block_frequent_keywords($limit = 10) {
   $timestamp = REQUEST_TIME - 3600 * 24 * 7;
   $result = db_query_range("SELECT keywords FROM {apachesolr_stats} WHERE
       numfound > :numfound AND timestamp > :timestamp
-      ORDER BY timestamp DESC", array(':numfound' => 0, ':timestamp' => $timestamp));
-  while ($record = db_fetch_object($result)) {
+      ORDER BY timestamp DESC", 0, 5000, array(':numfound' => 0, ':timestamp' => $timestamp));
+  foreach ($result as $record) {
     if (trim($record->keywords) != "") {
       // Keep track of individual keywords used
       $keys_filtered = drupal_strtolower(trim($record->keywords));
