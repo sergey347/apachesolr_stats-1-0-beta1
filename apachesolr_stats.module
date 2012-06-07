@@ -669,19 +669,12 @@ function apachesolr_stats_get_facets() {
   $facets = array();
 
   if (module_exists('facetapi')) {
-    $searcher_info = apachesolr_facetapi_searcher_info();
-    $default_environment = apachesolr_default_environment();
-    $searcher_name = 'apachesolr@' . $default_environment;
-    $searcher = $searcher_info[$searcher_name];
-    // TODO: Why do I need to add 'node' element to searcher array?
-    $searcher['types']['node'] = TRUE;
-    $all_facets = module_invoke_all('facetapi_facet_info', $searcher);
-    foreach ($all_facets as $facet_id => $facet) {
-      // Limit to enabled facets only.
-      // TODO: Check that "block" realm is only one actually needed to check.
-      if (facetapi_facet_enabled($searcher_name, 'block', $facet_id)) {
-        $facets[$facet_id] = array(
-          'facet_field' => $facet_id,
+    $environments = apachesolr_load_all_environments();
+    foreach ($environments as $env_id => $environment) {
+      $searcher = 'apachesolr@' . $env_id;
+      foreach (facetapi_get_enabled_facets($searcher) as $facet_name => $facet) {
+        $facets[$facet_name] = array(
+          'facet_field' => $facet['field'],
           'info' => $facet['label'],
           'usage' => 0,
         );
