@@ -170,32 +170,36 @@ function apachesolr_stats_exit() {
     return;
   }
 
-  if (! apachesolr_has_searched()) {
-    return;
-  }
-  $query = apachesolr_current_query();
-  $response = apachesolr_static_response_cache($query->getSearcher());
-  $num_suggestions = 0;
-  if (isset($response->spellcheck) && isset($response->spellcheck->suggestions) && $response->spellcheck->suggestions != NULL) {
-    $num_suggestions = 1;
-  }
+  $environments = apachesolr_load_all_environments();
 
-  $id = db_insert('apachesolr_stats')
-    ->fields(array(
-      'timestamp' => REQUEST_TIME,
-      'uid' => $user->uid,
-      'sid' => session_id(),
-      'numfound' => $response->response->numFound,
-      'showed_suggestions' => $num_suggestions,
-      'total_time' => $response->debug->timing->time,
-      'prepare_time' => $response->debug->timing->prepare->time,
-      'process_time' => $response->debug->timing->process->time,
-      'page' => isset($_GET['page']) ? $_GET['page'] : '',
-      'keywords' => $query->getParam('q'),
-      'filters' => serialize($query->getFilters()),
-      'sort' => serialize($query->getSolrsort()),
-    ))
-    ->execute();
+  foreach ($environments as $env_id => $environment) {
+    if (! apachesolr_has_searched($env_id)) {
+      return;
+    }
+    $query = apachesolr_current_query($env_id);
+    $response = apachesolr_static_response_cache($query->getSearcher());
+    $num_suggestions = 0;
+    if (isset($response->spellcheck) && isset($response->spellcheck->suggestions) && $response->spellcheck->suggestions != NULL) {
+      $num_suggestions = 1;
+    }
+
+    $id = db_insert('apachesolr_stats')
+      ->fields(array(
+        'timestamp' => REQUEST_TIME,
+        'uid' => $user->uid,
+        'sid' => session_id(),
+        'numfound' => $response->response->numFound,
+        'showed_suggestions' => $num_suggestions,
+        'total_time' => $response->debug->timing->time,
+        'prepare_time' => $response->debug->timing->prepare->time,
+        'process_time' => $response->debug->timing->process->time,
+        'page' => isset($_GET['page']) ? $_GET['page'] : '',
+        'keywords' => $query->getParam('q'),
+        'filters' => serialize($query->getFilters()),
+        'sort' => serialize($query->getSolrsort()),
+      ))
+      ->execute();
+  }
 
   return;
 
