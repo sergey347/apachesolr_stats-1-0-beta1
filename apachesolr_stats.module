@@ -773,6 +773,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
   // Scan the logfile and build statistics arrays
   $result = db_query("SELECT * FROM {apachesolr_stats} WHERE timestamp > :timestamp ORDER BY timestamp DESC", array(':timestamp' => REQUEST_TIME - $granularity['time_before']));
   foreach ($result as $record) {
+    $filters = unserialize($record->filters);
     $timeslot = intval($record->timestamp / $granularity['timespan']);
     if ($last_timeslot == 0) {
       $last_timeslot = $timeslot;
@@ -795,7 +796,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
     // Field usage; only when on first results page (meaning it's a fresh search)
     if ($record->page == "") {
       $facet_processed_flag = array();
-      foreach (unserialize($record->filters) as $filter) {
+      foreach ($filters as $filter) {
         $fieldname = apachesolr_stats_determine_field_from_query($filter['#name']);
         if ($fieldname != false && isset($facets[$fieldname])) {
           // Count this facet field only once per query
@@ -818,7 +819,7 @@ function apachesolr_stats_generate_report_elements($granularity) {
           @$keywords[$keys_filtered]++;
 
           // Count keywords with zero results; but only when no filters issued.
-          if ($record->numfound == 0 && !$record->filters) {
+          if ($record->numfound == 0 && !$filters) {
             @$keywords_noresults[$keys_filtered]++;
           }
         }
