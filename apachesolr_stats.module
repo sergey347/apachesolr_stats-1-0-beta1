@@ -18,29 +18,13 @@ function apachesolr_stats_menu() {
       'access arguments' => array('administer search'),
       'type' => MENU_LOCAL_TASK,
     ),
-    'admin/reports/apachesolr/stats' => array(
+    'admin/reports/apachesolr/%apachesolr_environment/stats' => array(
       'title' => 'Statistics',
       'description' => 'Report of Apache Solr usage and performance.',
       'page callback' => 'apachesolr_stats_report',
-      'page arguments' => array(),
-      'access arguments' => array('administer search'),
+      'page arguments'     => array(3),
+      'access arguments'   => array('access site reports'),
       'type' => MENU_LOCAL_TASK,
-    ),
-    'apachesolr_stats/gadget' => array(
-      'title' => 'Apache Solr Google Gadget',
-      'page callback' => 'apachesolr_stats_report_gadget',
-      'description' => 'Provides content for Google Gadget.',
-      'page arguments' => array(),
-      'access arguments' => array('access content'),
-      'type' => MENU_CALLBACK,
-    ),
-    'apachesolr_stats/element/%/%/%' => array(
-      'title' => 'Apache Solr Google Gadget Elements',
-      'page callback' => 'apachesolr_stats_report_gadget_element',
-      'description' => 'Provides content for Google Gadget.',
-      'page arguments' => array(2, 3, 4),
-      'access arguments' => array('access content'),
-      'type' => MENU_CALLBACK,
     ),
   );
 }
@@ -244,135 +228,6 @@ function apachesolr_stats_get_active_facets($searcher) {
 }
 
 /**
- * Callback function that outputs an XML description for a Google Gadget
- * and terminates PHP execution.
- *
- * @see apachesolr_stats_menu()
- */
-function apachesolr_stats_report_gadget() {
-  $settings_key = variable_get("apachesolr_stats_gadget_key", "");
-  if ($settings_key === 0) {
-    echo t("Invalid request");
-    exit;
-  }
-
-  $granularities = apachesolr_stats_get_granularities();
-  $report_elements = apachesolr_stats_generate_report_elements($granularities["hour"]);
-
-  // Generate options
-  $element_options = "";
-  foreach ($report_elements as $id => $element) {
-    $element_options .= "    <EnumValue value=\"{$id}\" display_value=\"{$element[name]}\" />\n";
-  }
-  $granularity_options = "";
-  foreach ($granularities as $id => $granularity) {
-    $granularity_options .= "    <EnumValue value=\"{$id}\" display_value=\"{$granularity[last_msg]}\"/>\n";
-  }
-  $title = t('Search statistics for @sitename', array('@sitename' => variable_get('site_name', '')));
-  $access_key = t('Access key');
-  $var_to_show = t('Variable to show');
-  $timespan_to_report = t('Time span to report');
-  $loading = t('Loading...');
-
-  // Send correct header for XML
-  header("Content-Type: text/xml");
-  // Output the gadget XML description
-  $site_base_url = url('<front>', array('absolute' => true));
-  echo <<<HEREDOC
-<?xml version="1.0" encoding="UTF-8" ?>
-<Module>
-  <ModulePrefs
-    title="$title"
-    author="Alejandro Garza"
-    author_email="alejandro.garza@itesm.mx"
-    description="Google widget for Drupal Apache Solr Statistics module. More info: http://drupal.org/project/apachesolr_stats"
-    screenshot="http://chart.apis.google.com/chart?cht=lc&amp;chs=300x200&amp;chdlp=b&amp;chma=30,100,20,20&amp;chd=s:NlVabjGXUaM&amp;chxp=1,22"
-    thumbnail="http://chart.apis.google.com/chart?cht=lc&amp;chs=200x100&amp;chdlp=b&amp;chma=30,100,20,20&amp;chd=s:NlVabjGXUaM&amp;chxp=1,22"
-    height="180" >
-    <Require feature="dynamic-height"/>
-  </ModulePrefs>
-
-  <UserPref name="key" display_name="$access_key" required="true" default_value="$settings_key" datatype="string" />
-  <UserPref name="element" display_name="$var_to_show" default_value="total_queries_per" datatype="enum" >
-  $element_options
-  </UserPref>
-  <UserPref name="granularity" display_name="$timespan_to_report" default_value="day" datatype="enum" >
-  $granularity_options
-  </UserPref>
-
-  <Content type="html"><![CDATA[
-    <div id="content_div">$loading</div>
-    <script type="text/javascript">
-      function getHtml() {
-        var params = {};
-        var prefs = new gadgets.Prefs();
-        var element = prefs.getString("element");
-        var granularity = prefs.getString("granularity");
-        var key = prefs.getString("key");
-        var rand = Math.floor(Math.random()*9999)
-
-        params[gadgets.io.RequestParameters.CONTENT_TYPE] = gadgets.io.ContentType.TEXT;
-        var url = "${site_base_url}/apachesolr_stats/element/" + granularity + "/" + element + "/" + key + "?" + rand;
-        gadgets.io.makeRequest(url, response, params);
-      };
-      function response(obj) {
-        //obj.text contains the text of the page that was requested
-        document.getElementById('content_div').innerHTML = obj.text;
-        setTimeout("gadgets.window.adjustHeight()", 1000);
-      };
-
-      gadgets.util.registerOnLoadHandler(getHtml);
-    </script>
-  ]]>
-  </Content>
-</Module>
-HEREDOC;
-  exit;
-}
-
-/**
- * Callback function used by Gadget javascript to fetch a particular element.
- *
- * @param string $requested_granularity
- *  Granularity of report to use.
- * @param string $requested_element
- *  ID of report element to return.
- * @param string $requested_key
- *  Secret key given by gadget.
- * @see apachesolr_stats_menu()
- */
-function apachesolr_stats_report_gadget_element($requested_granularity, $requested_element, $requested_key) {
-  $granularities = apachesolr_stats_get_granularities();
-  $settings_key = variable_get("apachesolr_stats_gadget_key", "");
-  if ($settings_key === 0) {
-    echo "Invalid request: no local key set";
-    exit;
-  }
-  if ($settings_key != $requested_key) {
-    echo "Invalid request: invalid key $requested_key";
-    exit;
-  }
-  if (empty($granularities[$requested_granularity])) {
-    echo "Invalid request: bad granularity $requested_granularity";
-    exit;
-  }
-
-  $report_elements = apachesolr_stats_generate_report_elements($granularities[$requested_granularity]);
-  foreach ($report_elements as $id => $report_element) {
-    if ($id == $requested_element) {
-      echo "<b>" . $report_element['name'] . "</b><br />\n";
-      echo "<div style='font-size:80%'>" . $report_elements['span']['value'] . "</div>\n";
-      $value = $report_element['value'];
-      $value = str_replace('&', '&amp;', $value);
-      echo "<div>{$value}</div>\n";
-      exit;
-    }
-  }
-  echo "Invalid request: bad element $requested_element";
-  exit;
-}
-
-/**
  * Callback for admin/reports/apachesolr/stats.
  * @param string $granularity
  *   Granularity to use for report.
@@ -380,7 +235,11 @@ function apachesolr_stats_report_gadget_element($requested_granularity, $request
  *   The page output as HTML.
  * @see apachesolr_stats_menu()
  */
-function apachesolr_stats_report($picked_granularity = "minute") {
+function apachesolr_stats_report($environment = NULL, $picked_granularity = "minute") {
+  if (!$environment) {
+    $env_id = apachesolr_default_environment();
+    drupal_goto('admin/reports/apachesolr/' . $env_id . '/stats');
+  }
   drupal_set_title(t("Apache Solr statistics report"));
   if (! variable_get('apachesolr_stats_enabled', 0)) {
     return t('Logging is disabled in the !link. Enable it to log Apache Solr queries.', array('!link' => l('module configuration page', 'admin/config/search/apachesolr/stats')));
