@@ -182,7 +182,7 @@ function apachesolr_stats_exit() {
       'prepare_time' => $response->debug->timing->prepare->time,
       'process_time' => $response->debug->timing->process->time,
       'page' => isset($_GET['page']) ? $_GET['page'] : '',
-      'keywords' => $query->getParam('q'),
+      'keywords' => $keywords,
       'filters' => serialize(apachesolr_stats_get_active_facets($query->getSearcher())),
       'sort' => serialize($query->getSolrsort()),
       'env_id' => $env_id,
@@ -658,6 +658,9 @@ function apachesolr_stats_generate_report_elements($page_id, $granularity) {
   $keywords = array();
   $keywords_noresults = array();
   $simultaneous_fields = array();
+  $count_per_granularity = array();
+  $data_per_granularity = array();
+  $sort_usage = array();
 
   // Scan the logfile and build statistics arrays
   $result = db_query("SELECT * FROM {apachesolr_stats} WHERE timestamp > :timestamp AND page_id = :page_id ORDER BY timestamp DESC", array(':timestamp' => REQUEST_TIME - $granularity['time_before'], ':page_id' => $page_id));
