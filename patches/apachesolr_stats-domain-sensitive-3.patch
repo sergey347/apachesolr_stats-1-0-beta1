@@ -1,0 +1,121 @@
+diff --git a/apachesolr_stats.install b/apachesolr_stats.install
+index f1bdee3..0c00050 100644
+--- a/apachesolr_stats.install
++++ b/apachesolr_stats.install
+@@ -22,7 +22,7 @@ function apachesolr_stats_uninstall() {
+   variable_del('apachesolr_stats_ignore_ip_list');
+   variable_del('apachesolr_stats_ignore_role_list');
+   // Remove cached info.
+-  cache_clear_all('apachesolr_stats_block_frequent_keywords', 'cache_block');
++  cache_clear_all('apachesolr_stats_block_frequent_keywords', 'cache_block', TRUE);
+ }
+ 
+ /**
+@@ -131,6 +131,12 @@ function apachesolr_stats_schema() {
+         'length' => 32,
+         'not null' => TRUE,
+       ),
++      'domain_id' => array(
++        'type' => 'int',
++        'default' => 0,
++        'not null' => TRUE,
++        'description' => 'Domain id',
++      ),
+     ),
+     'primary key' => array('qid'),
+   );
+@@ -161,3 +167,24 @@ function apachesolr_stats_update_7000() {
+     )
+   );
+ }
++
++/**
++ * Adds domain_id field to the apachesolr_stats table.
++ */
++function apachesolr_stats_update_7001() {
++  db_add_field('apachesolr_stats', 'domain_id', array(
++    'type' => 'int',
++    'default' => 0,
++    'not null' => TRUE,
++  ), array());
++}
++
++/**
++ * Performed during update from 7.x-1.0-alpha1 to 7.x-1.0-beta1
++ * due to tricky hook_update_N implementation.
++ */
++function apachesolr_stats_update_7002() {
++  if (function_exists('apachesolr_stats_update_7000')) {
++    apachesolr_stats_update_7000();
++  }
++}
+diff --git a/apachesolr_stats.module b/apachesolr_stats.module
+index b99fa29..5bf12c5 100644
+--- a/apachesolr_stats.module
++++ b/apachesolr_stats.module
+@@ -171,6 +171,16 @@ function apachesolr_stats_exit() {
+     }
+   }
+ 
++  // Default domain ID is -1. If we want to cache results per domain
++  // we should switch ID to 0 to get deal with cache ID string.
++  if (module_exists('domain')) {
++    $domain = domain_get_domain();
++    $domain_id = ($domain['domain_id'] == -1) ? 0 : $domain['domain_id'];
++  }
++  else {
++    $domain_id = 0;
++  }
++
+   $id = db_insert('apachesolr_stats')
+     ->fields(array(
+       'timestamp' => REQUEST_TIME,
+@@ -186,7 +196,8 @@ function apachesolr_stats_exit() {
+       'filters' => serialize(apachesolr_stats_get_active_facets($query->getSearcher())),
+       'sort' => serialize($query->getSolrsort()),
+       'env_id' => $env_id,
+-      'page_id' => $search_page['page_id']
++      'page_id' => $search_page['page_id'],
++      'domain_id' => $domain_id
+     ))
+     ->execute();
+ 
+@@ -914,6 +925,16 @@ function apachesolr_stats_block_frequent_keywords($page_id, $limit = 10) {
+   $search_page = apachesolr_search_page_load($page_id);
+   $search_path = $search_page['search_path'];
+   $cid = "apachesolr_stats_block_frequent_keywords_{$page_id}";
++
++  if (module_exists('domain')) {
++    $domain = domain_get_domain();
++    $domain_id = ($domain['domain_id'] == -1) ? 0 : $domain['domain_id'];
++  }
++  else {
++    $domain_id = 0;
++  }
++  $cid .= ':' . $domain_id;
++
+   $cached = cache_get($cid, 'cache_block');
+   if ($cached && $cached->data && $cached->expire > REQUEST_TIME) {
+     return $cached->data;
+@@ -921,9 +942,18 @@ function apachesolr_stats_block_frequent_keywords($page_id, $limit = 10) {
+   $keywords = array();
+   // Return keywords only last week's logged queries.
+   $timestamp = REQUEST_TIME - 3600 * 24 * 7;
+-  $result = db_query_range("SELECT keywords FROM {apachesolr_stats} WHERE
+-      numfound > :numfound AND timestamp > :timestamp AND page_id = :pageid
+-      ORDER BY timestamp DESC", 0, 5000, array(':numfound' => 0, ':timestamp' => $timestamp, ':pageid' => $page_id));
++
++  $query = db_select('apachesolr_stats', 'ass')
++    ->fields('ass', array('keywords'))
++    ->condition('numfound', 0, '>')
++    ->condition('timestamp', $timestamp, '>')
++    ->condition('page_id', $page_id)
++    ->condition('domain_id', $domain_id)
++    ->orderBy('timestamp', 'DESC')
++    ->range(0, 5000);
++
++  $result = $query->execute();
++
+   foreach ($result as $record) {
+     if (trim($record->keywords) != "") {
+       // Keep track of individual keywords used
